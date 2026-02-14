@@ -161,6 +161,12 @@ Ensure that your services emit logs, span, and metric data under actual HTTP or 
 1. **Clone and Branch**
 
 ```bash
+git clone git@github.com:Varsilias/otel.git
+```
+
+2. Checkout to your Feature Branch
+```bash
+cd otel
 git checkout -b feat/your-feature
 ```
 
@@ -174,36 +180,14 @@ npm run build
 
 3. **Test**
 
-Write a script in `test.ts` or add a Jest test.
+Create a new test file with the extension `.spec.ts` in the `tests` directory or add to the existing test files without modifying existing code.
 
 4. **Open a PR**
 
-Push your branch and create a pull request against `main` on Azure DevOps.
+Push your branch and create a pull request against `main` on GitHub.
 
 Include:
 
 - Description of changes
 - Testing steps
 - Optional screenshot/log samples
-
----
-
-## 🔐 Publishing to Azure DevOps Registry
-
-1. In your `.npmrc` file:
-
-```ini
-@chorus-ng:registry=https://pkgs.dev.azure.com/Chorus-Project/_packaging/chorus-internal-packages/npm/registry/
-```
-
-2. Authenticate with:
-
-```bash
-npm login --registry=https://pkgs.dev.azure.com/Chorus-Project/_packaging/chorus-internal-packages/npm/registry/
-```
-
-3. Publish:
-
-```bash
-npm publish --access restricted
-```
