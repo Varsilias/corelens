@@ -1,0 +1,59 @@
+{
+  "name": "@varsilias/otel",
+  "version": "1.0.0",
+  "description": "OpenTelemetry instrumentation and configuration library for Node.js Application. This library makes it easy to configure logs, metrics and traces collection and export for Express, Nest.js, Fastify Applications and more",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "opentelemetry",
+    "tracing",
+    "monitoring",
+    "microservices",
+    "otel"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "prepublishOnly": "npm run build",
+    "prepare": "husky",
+    "publish:ci": "npm publish --access restricted"
+  },
+  "author": "Daniel Okoronkwo <danielokoronkwo90@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Varsilias/otel"
+  },
+  "bugs": {
+    "url": "https://github.com/Varsilias/otel/issues"
+  },
+  "homepage": "https://github.com/Varsilias/otel#readme",
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
+    "dotenv": "^17.3.1",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "prettier": "^3.8.1",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
