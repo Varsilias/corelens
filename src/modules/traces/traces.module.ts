@@ -10,7 +10,7 @@ export class TracesModule implements Module {
   start(): void {
     // console.log('TracesModule started');
   }
-  stop(): void {
+  async stop(): Promise<void> {
     // console.log('TracesModule stopped');
   }
 }

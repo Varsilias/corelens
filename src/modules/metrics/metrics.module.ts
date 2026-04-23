@@ -10,7 +10,7 @@ export class MetricsModule implements Module {
   start(): void {
     // console.log('MetricsModule started');
   }
-  stop(): void {
+  async stop(): Promise<void> {
     // console.log('MetricsModule stopped');
   }
 }

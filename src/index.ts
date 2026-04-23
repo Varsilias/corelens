@@ -1,33 +1,58 @@
-import { otel } from './core/orchestrator';
+import { CorelensConfig } from './core/config';
+import { corelens } from './core/orchestrator';
 
 const config = {
   serviceName: 'payment-service',
-  logs: true,
+  logs: {
+    enabled: true,
+    fullQueuePolicy: 'drop-newest',
+    maxQueueBytes: 4 * 1024 * 1024,
+    reportStatsOnShutdown: true,
+    writer: {
+      highWaterMark: 64 * 1024,
+    },
+  },
   metrics: true,
   traces: true,
-};
-// const startMemory = process.memoryUsage()
-// console.time('otel-init');
-// otel({
-//   serviceName: 'payment-service',
-//   logs: true,
-//   metrics: true,
-//   traces: true,
-// });
-// console.timeEnd('otel-init');
-// const endMemory = process.memoryUsage()
+  lifecycle: {
+    handleProcessSignals: true,
+  },
+} as CorelensConfig;
 
-// const memoryDiff = {
-//     rss: (endMemory.rss - startMemory.rss) / 1024/ 1024,
-//     heapUsed: (endMemory.heapUsed - startMemory.heapUsed) / 1024/ 1024
-// }
+async function main() {
+  const startMemory = process.memoryUsage();
+  const start = performance.now();
 
-// console.log(`Init Memory Increase: ${memoryDiff.rss.toFixed(2)} MB`);
+  const lens = corelens(config);
+  const logger = lens.logger;
 
-import { performance } from 'perf_hooks';
+  for (let i = 0; i < 100_000; i++) {
+    logger.info('test', { i });
+  }
 
-const start = performance.now();
-otel(config);
-const end = performance.now();
+  const produceEnd = performance.now();
 
-console.log(`Init time: ${end - start}ms`);
+  const flushStart = performance.now();
+  await lens.shutdown();
+  const flushEnd = performance.now();
+
+  const endMemory = process.memoryUsage();
+
+  const memoryDiff = {
+    rss: (endMemory.rss - startMemory.rss) / 1024 / 1024,
+    heapUsed: (endMemory.heapUsed - startMemory.heapUsed) / 1024 / 1024,
+  };
+
+  console.log({
+    produceTimeMs: produceEnd - start,
+    flushTimeMs: flushEnd - flushStart,
+    totalTimeMs: flushEnd - start,
+    memoryDiff,
+    stats: lens.getStats(),
+  });
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});
