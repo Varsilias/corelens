@@ -81,11 +81,20 @@ server.on('error', (e: any) => {
   }
 });
 
-['SIGINT', 'SIGTERM'].forEach(async (signal) => {
-  console.log('\nShutting down...');
-  await sdk.shutdown();
-  server.close(() => {
-    console.log('Server closed.');
-    process.exit(0);
+let shuttingDown = false;
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    console.log(`\nReceived ${signal}. Shutting down...`);
+
+    await sdk.shutdown();
+
+    server.close(() => {
+      console.log('Server closed.');
+      process.exitCode = 0;
+    });
   });
-});
+}

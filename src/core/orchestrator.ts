@@ -8,17 +8,20 @@ import {
 import { ILogger, Logger } from './logger';
 import { Module } from './modules';
 import { NoopPipeline } from './pipeline';
-import { MetricsRegistry } from './registry';
+import { IMetricsRegistry, NoopMetricsRegistry } from './registry';
 
 class Corelens {
   private modules: Module[] = [];
   private started: boolean = false;
-  private logsModule: LogsModule;
   private shutdownPromise?: Promise<void>;
+
+  // specific module wiring
+  private logsModule: LogsModule;
+  private metricsModule: MetricsModule;
 
   // public APIs
   public logger: ILogger;
-  public metrics: MetricsRegistry;
+  public metrics: IMetricsRegistry;
 
   constructor(public config: NormalisedConfig) {
     const logsModule = new LogsModule({ config });
@@ -34,10 +37,15 @@ class Corelens {
 
     // Metrics
     const metricsModule = new MetricsModule({ config });
+    this.metricsModule = metricsModule;
+
     if (config.metrics.enabled) {
       this.modules.push(metricsModule);
     }
-    this.metrics = new MetricsRegistry();
+
+    this.metrics = config.metrics.enabled
+      ? metricsModule.getRegistry()
+      : new NoopMetricsRegistry();
 
     // Traces
     if (config.traces) this.modules.push(new TracesModule({ config }));
@@ -51,6 +59,7 @@ class Corelens {
   getStats() {
     return {
       logs: this.logsModule.getPipelineStats(),
+      metrics: this.metricsModule.snapshot(),
     };
   }
 
@@ -126,7 +135,13 @@ function normaliseConfig(corelensConfig: CorelensConfig): NormalisedConfig {
           DEFAULT_STREAM_HIGHWATERMARK,
       },
     },
-    metrics: corelensConfig.metrics ?? false,
+    metrics: {
+      enabled: corelensConfig?.metrics?.enabled ?? false,
+      runtime: {
+        enabled: corelensConfig?.metrics?.runtime?.enabled ?? false,
+        intervalMs: corelensConfig?.metrics?.runtime?.intervalMs ?? 15000,
+      },
+    },
     traces: corelensConfig.traces ?? false,
     lifecycle: {
       handleProcessSignals:

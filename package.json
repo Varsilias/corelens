@@ -31,7 +31,7 @@
     "prepublishOnly": "npm run build",
     "prepare": "husky",
     "publish:ci": "npm publish --access restricted",
-    "dev": "ts-node src/index"
+    "dev": "ts-node src/tester"
   },
   "author": "Daniel Okoronkwo <danielokoronkwo90@gmail.com>",
   "license": "MIT",

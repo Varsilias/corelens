@@ -15,6 +15,10 @@ export type CorelensLogConfig = {
 
 export type CorelensMetricsConfig = {
   enabled: boolean;
+  runtime?: {
+    enabled: boolean;
+    intervalMs: number;
+  };
 };
 
 export type CorelensConfig = {
@@ -43,6 +47,10 @@ export type NormalisedLogConfig = {
 
 export type NormalisedMetricsConfig = {
   enabled: boolean;
+  runtime: {
+    enabled: boolean;
+    intervalMs: number;
+  };
 };
 
 export type NormalisedConfig = {
