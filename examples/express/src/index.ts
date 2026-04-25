@@ -81,16 +81,7 @@ server.on('error', (e: any) => {
   }
 });
 
-process.on('SIGINT', async () => {
-  console.log('\nShutting down...');
-  await sdk.shutdown();
-  server.close(() => {
-    console.log('Server closed.');
-    process.exit(0);
-  });
-});
-
-process.on('SIGTERM', async () => {
+['SIGINT', 'SIGTERM'].forEach(async (signal) => {
   console.log('\nShutting down...');
   await sdk.shutdown();
   server.close(() => {

@@ -89,3 +89,20 @@ const start = async () => {
 };
 
 start();
+
+const gracefulShutdown = async () => {
+  console.log('\nShutting down gracefully...');
+
+  await fastify.close();
+  console.log('Fastify server closed.');
+
+  await sdk.shutdown();
+  console.log('Corelens SDK flushed and shut down.');
+
+  process.exit(0);
+};
+
+// Listen for termination signals
+['SIGINT', 'SIGTERM'].forEach((signal) => {
+  process.on(signal, gracefulShutdown);
+});
