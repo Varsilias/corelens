@@ -1,25 +1,25 @@
 {
-  "name": "example-express",
+  "name": "example-fastify",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --watch src --watch ../../src --ext ts --exec ts-node src/index.ts",
     "start": "nodemon --watch src --ext ts --exec 'ts-node' src/index.ts",
-    "bench": "autocannon -c 100 -d 20 http://localhost:3000/api/data"
+    "bench": "autocannon -c 100 -d 20 http://localhost:3100/api/data"
   },
   "keywords": [
     "corelens",
     "observability",
     "telemetry",
     "open-telemetry",
-    "express"
+    "fastify"
   ],
   "author": "Daniel Okoronkwo <danielokoronkwo90@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "@varsilias/corelens": "file:../../",
-    "express": "^5.2.1"
+    "fastify": "^5.8.5"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
