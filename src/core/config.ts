@@ -13,10 +13,14 @@ export type CorelensLogConfig = {
   };
 };
 
+export type CorelensMetricsConfig = {
+  enabled: boolean;
+};
+
 export type CorelensConfig = {
   serviceName: string;
   logs?: CorelensLogConfig;
-  metrics?: boolean;
+  metrics?: CorelensMetricsConfig;
   traces?: boolean;
   lifecycle?: {
     handleProcessSignals?: boolean;
@@ -37,10 +41,14 @@ export type NormalisedLogConfig = {
   };
 };
 
+export type NormalisedMetricsConfig = {
+  enabled: boolean;
+};
+
 export type NormalisedConfig = {
   serviceName: string;
   logs: NormalisedLogConfig;
-  metrics: boolean;
+  metrics: NormalisedMetricsConfig;
   traces: boolean;
   lifecycle: {
     handleProcessSignals: boolean;

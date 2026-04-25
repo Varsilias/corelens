@@ -14,11 +14,12 @@ export class LogsModule implements Module {
   private pipeline: LogsPipeline;
 
   constructor(private ctx: ModuleContext) {
+    const { config } = this.ctx;
     const writer = new CorelensWriter({ highWaterMark: 64 * 1024 });
     this.pipeline = new LogsPipeline({
       writer,
-      maxQueueBytes: this.ctx.config.logs.maxQueueBytes ?? 4 * 1024 * 1024,
-      fullQueuePolicy: this.ctx.config.logs.fullQueuePolicy,
+      maxQueueBytes: config.logs.maxQueueBytes ?? 4 * 1024 * 1024,
+      fullQueuePolicy: config.logs.fullQueuePolicy,
     });
   }
 

@@ -8,6 +8,7 @@ import {
 import { ILogger, Logger } from './logger';
 import { Module } from './modules';
 import { NoopPipeline } from './pipeline';
+import { MetricsRegistry } from './registry';
 
 class Corelens {
   private modules: Module[] = [];
@@ -17,6 +18,7 @@ class Corelens {
 
   // public APIs
   public logger: ILogger;
+  public metrics: MetricsRegistry;
 
   constructor(public config: NormalisedConfig) {
     const logsModule = new LogsModule({ config });
@@ -30,9 +32,17 @@ class Corelens {
       config.logs.enabled ? logsModule.getPipeline() : new NoopPipeline(),
     );
 
-    if (config.metrics) this.modules.push(new MetricsModule({ config }));
+    // Metrics
+    const metricsModule = new MetricsModule({ config });
+    if (config.metrics.enabled) {
+      this.modules.push(metricsModule);
+    }
+    this.metrics = new MetricsRegistry();
+
+    // Traces
     if (config.traces) this.modules.push(new TracesModule({ config }));
 
+    // process signal
     if (config.lifecycle.handleProcessSignals) {
       this.attachProcessHandlers();
     }
