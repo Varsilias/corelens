@@ -14,6 +14,10 @@ const sdk = corelens({
   },
   metrics: {
     enabled: true,
+    runtime: {
+      enabled: true,
+      intervalMs: 2000,
+    },
   },
 });
 
@@ -50,7 +54,7 @@ app.get('/api/error', (c) => {
 
 app.get('/metrics', (c) => {
   c.header('Content-Type', 'text/plain');
-  return c.text(exporter.render(sdk.metrics.snapshot()));
+  return c.text(exporter.render(sdk.getMetricsSnapshot()));
 });
 
 app.get('/debug/stats', (c) => c.json(sdk.getStats()));

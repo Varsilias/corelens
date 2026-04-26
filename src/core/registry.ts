@@ -109,7 +109,9 @@ export class Counter {
   private values = new Map<string, StoredMetricValue>();
   private boundCache = new Map<string, BoundCounter>();
 
-  constructor(public readonly name: string) {}
+  constructor(public readonly name: string) {
+    this.inc(0);
+  }
 
   /**
    * Pre-binds labels to a counter.
@@ -155,7 +157,9 @@ export class Gauge {
   private values = new Map<string, StoredMetricValue>();
   private boundCache = new Map<string, BoundGauge>();
 
-  constructor(public readonly name: string) {}
+  constructor(public readonly name: string) {
+    this.inc(0);
+  }
 
   labels(labels: Labels): BoundGauge {
     const key = serializeLabels(labels);

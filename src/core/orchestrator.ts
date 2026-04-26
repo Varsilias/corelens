@@ -56,10 +56,14 @@ class Corelens {
     }
   }
 
+  getMetricsSnapshot() {
+    return this.metricsModule.getFullSnapshot();
+  }
+
   getStats() {
     return {
       logs: this.logsModule.getPipelineStats(),
-      metrics: this.metricsModule.snapshot(),
+      metrics: this.metricsModule.getFullSnapshot(),
     };
   }
 

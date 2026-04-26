@@ -20,7 +20,7 @@ export class MetricsModule implements Module {
     return this.registry;
   }
 
-  snapshot() {
+  getFullSnapshot() {
     return this.registry.snapshot();
   }
 
