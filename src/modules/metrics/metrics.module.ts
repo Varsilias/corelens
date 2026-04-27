@@ -27,6 +27,10 @@ export class MetricsModule implements Module {
     return this.registry.snapshot();
   }
 
+  getCardinalitySnapshot() {
+    return this.registry.cardinalitySnapshot();
+  }
+
   init(): void {}
   start(): void {
     this.runtimeCollector?.start();

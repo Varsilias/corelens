@@ -24,6 +24,7 @@ const lens = corelens({
     },
     http: {
       enabled: true,
+      ignoredRoutes: ['/metrics', '/health', '/liveness', '/debug/stats'],
     },
   },
 });

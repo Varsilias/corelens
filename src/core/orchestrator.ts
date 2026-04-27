@@ -73,7 +73,10 @@ class Corelens {
   getStats() {
     return {
       logs: this.logsModule.getPipelineStats(),
-      metrics: this.metricsModule.getFullSnapshot(),
+      metrics: {
+        snapshot: this.metricsModule.getFullSnapshot(),
+        labelCardinalitySnapshot: this.metricsModule.getCardinalitySnapshot(),
+      },
     };
   }
 

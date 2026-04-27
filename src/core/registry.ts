@@ -102,6 +102,15 @@ export class MetricsRegistry implements IMetricsRegistry {
     return instance;
   }
 
+  cardinalitySnapshot() {
+    return {
+      counters: this.getMapCardinality(this.counters),
+      gauges: this.getMapCardinality(this.gauges),
+      histograms: this.getMapCardinality(this.histograms),
+      total: this.calculateTotalCardinality(),
+    };
+  }
+
   snapshot(): MetricsSnapshot {
     const entries: RegistryEntry[] = [];
 
@@ -165,6 +174,35 @@ export class MetricsRegistry implements IMetricsRegistry {
     }));
   }
 
+  /**
+   * Helper to extract cardinality from a Map of metrics
+   */
+  private getMapCardinality(
+    map: Map<string, Counter | Gauge | Histogram>,
+  ): Record<string, number> {
+    const stats: Record<string, number> = {};
+    for (const [name, instance] of map.entries()) {
+      stats[name] = instance.cardinality;
+    }
+    return stats;
+  }
+
+  /**
+   * Sums up every single series across all metric types
+   */
+  private calculateTotalCardinality(): number {
+    let total = 0;
+
+    for (const c of this.counters.values()) total += c.cardinality;
+    for (const g of this.gauges.values()) total += g.cardinality;
+    for (const h of this.histograms.values()) total += h.cardinality;
+
+    return total;
+  }
+
+  /**
+   * Check name against list of registered names
+   */
   private validateName(name: string, type: MetricType) {
     const existingType = this.registeredNames.get(name);
 
