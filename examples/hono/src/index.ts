@@ -4,12 +4,12 @@ import {
   corelens,
   HonoMetricsAdapter,
   PrometheusTextExporter,
-} from '@varsilias/corelens'; // Your library
+} from '@varsilias/corelens';
 
 const app = new Hono();
 const port = 3200;
 
-const sdk = corelens({
+const lens = corelens({
   serviceName: 'hono-test-app',
   logs: {
     enabled: true,
@@ -28,17 +28,24 @@ const sdk = corelens({
   },
 });
 
-const logger = sdk.logger;
-const metrics = sdk.metrics;
+const logger = lens.logger;
+const metrics = lens.metrics;
 
 const adapter = new HonoMetricsAdapter();
-adapter.register(app, sdk.httpRecorder);
+adapter.register(app, lens.httpRecorder);
 
 const exporter = new PrometheusTextExporter();
-const requestTotal = metrics.counter('example_http_requests_total');
-const httpDur = metrics.histogram('example_http_request_duration_seconds', {
-  buckets: [0.01, 0.05, 0.1, 0.5, 1],
-});
+const requestTotal = metrics.counter(
+  'example_http_requests_total',
+  '[Custom] Total number of HTTP request sent to our server',
+);
+const httpDur = metrics.histogram(
+  'example_http_request_duration_seconds',
+  '[Custom] HTTP request duration sent to our server',
+  {
+    buckets: [0.01, 0.05, 0.1, 0.5, 1],
+  },
+);
 
 app.use('*', async (c, next) => {
   const start = Date.now();
@@ -76,16 +83,16 @@ app.get('/api/work/:id', async (c) => {
 
 app.get('/api/error', (c) => {
   requestTotal.inc();
-  sdk.logger.error('Critical API Failure', { code: 'ERR_500' });
+  lens.logger.error('Critical API Failure', { code: 'ERR_500' });
   return c.json({ error: 'Internal Server Error' }, 500);
 });
 
 app.get('/metrics', (c) => {
   c.header('Content-Type', 'text/plain');
-  return c.text(exporter.render(sdk.getMetricsSnapshot()));
+  return c.text(exporter.render(lens.getMetricsSnapshot()));
 });
 
-app.get('/debug/stats', (c) => c.json(sdk.getStats()));
+app.get('/debug/stats', (c) => c.json(lens.getStats()));
 
 app.notFound((c) => {
   return c.json({ error: 'Not found', path: c.req.path }, 404);
@@ -116,7 +123,7 @@ const gracefulShutdown = async () => {
     console.log('Hono server stopped.');
 
     // Flush telemetry
-    await sdk.shutdown();
+    await lens.shutdown();
     console.log('Telemetry batch flushed.');
 
     process.exit(0);

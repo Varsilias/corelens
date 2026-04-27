@@ -104,10 +104,17 @@ async function stressTestInternal() {
   });
 
   const iterations = 1_000_000;
-  const h = lens.metrics.histogram('stress_duration', {
-    buckets: [0.1, 0.5, 1, 2, 5],
-  });
-  const c = lens.metrics.counter('stress_counter');
+  const h = lens.metrics.histogram(
+    'stress_duration',
+    'Internal stress duration distribution',
+    {
+      buckets: [0.1, 0.5, 1, 2, 5],
+    },
+  );
+  const c = lens.metrics.counter(
+    'stress_counter',
+    'Stress test interation counter',
+  );
 
   console.log(
     `--- Starting Internal Stress: ${iterations.toLocaleString()} iterations ---`,

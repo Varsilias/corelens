@@ -4,11 +4,14 @@ import { MetricsRegistry } from '../../core';
 import { RuntimeMetricsCollector } from '../../collectors/runtime';
 
 export class MetricsModule implements Module {
-  private registry = new MetricsRegistry();
+  private registry: MetricsRegistry;
   private runtimeCollector?: RuntimeMetricsCollector;
 
   constructor(private ctx: ModuleContext) {
     const { config } = this.ctx;
+    this.registry = new MetricsRegistry({
+      maxSeriesPerMetric: config.metrics.maxSeriesPerMetric,
+    });
     if (config.metrics.runtime.enabled) {
       this.runtimeCollector = new RuntimeMetricsCollector(this.registry, {
         intervalMs: ctx.config.metrics.runtime.intervalMs,

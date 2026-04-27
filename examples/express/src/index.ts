@@ -3,12 +3,12 @@ import {
   corelens,
   PrometheusTextExporter,
   ExpressMetricsAdapter,
-} from '@varsilias/corelens'; // Your library
+} from '@varsilias/corelens';
 
 const app = express();
 const port = 3000;
 
-const sdk = corelens({
+const lens = corelens({
   serviceName: 'express-test-app',
   logs: {
     enabled: true,
@@ -23,15 +23,19 @@ const sdk = corelens({
   },
 });
 
-const logger = sdk.logger;
-const metrics = sdk.metrics;
+const logger = lens.logger;
+const metrics = lens.metrics;
 
 const adapter = new ExpressMetricsAdapter();
-adapter.register(app, sdk.httpRecorder);
+adapter.register(app, lens.httpRecorder);
 
-const httpDur = metrics.histogram('example_http_request_duration_seconds', {
-  buckets: [0.01, 0.05, 0.1, 0.5, 1],
-});
+const httpDur = metrics.histogram(
+  'example_http_request_duration_seconds',
+  '[Custom] HTTP request duration sent to our server',
+  {
+    buckets: [0.01, 0.05, 0.1, 0.5, 1],
+  },
+);
 
 const exporter = new PrometheusTextExporter();
 
@@ -50,7 +54,10 @@ app.use((req, res, next) => {
 });
 
 // metrics
-const requestTotal = metrics.counter('example_http_requests_total');
+const requestTotal = metrics.counter(
+  'example_http_requests_total',
+  '[Custom] Total number of HTTP request sent to our server',
+);
 
 app.get('/', (req, res) => {
   res.send('Corelens Test Server is running!');
@@ -88,7 +95,7 @@ app.get('/metrics', (req, res) => {
 });
 
 app.get('/debug/stats', (req, res) => {
-  res.json(sdk.getStats());
+  res.json(lens.getStats());
 });
 
 app.use((req, res, next) => {
@@ -119,7 +126,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
 
     console.log(`\nReceived ${signal}. Shutting down...`);
 
-    await sdk.shutdown();
+    await lens.shutdown();
 
     server.close(() => {
       console.log('Server closed.');

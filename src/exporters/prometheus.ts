@@ -8,7 +8,7 @@ export class PrometheusTextExporter {
   render(snapshot: MetricsSnapshot): string {
     let lines = '';
     for (const entry of snapshot.entries) {
-      lines += `# HELP ${entry.name} ${entry.name}\n`;
+      lines += `# HELP ${entry.name} ${entry.help}\n`;
       lines += `# TYPE ${entry.name} ${entry.type}\n`;
 
       for (const sample of entry.samples) {

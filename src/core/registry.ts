@@ -15,6 +15,7 @@ export type MetricSample = {
 
 export type RegistryEntry = {
   name: string;
+  help: string;
   type: MetricType;
   samples: MetricSample[];
 };
@@ -36,42 +37,66 @@ export type HistogramValue = {
   labels: Labels;
 };
 export interface IMetricsRegistry {
-  gauge(name: string): Gauge;
-  counter(name: string): Counter;
-  histogram(name: string, config: { buckets: number[] }): Histogram;
+  gauge(name: string, help: string): Gauge;
+  counter(name: string, help: string): Counter;
+  histogram(
+    name: string,
+    help: string,
+    config: { buckets: number[] },
+  ): Histogram;
   snapshot(): MetricsSnapshot;
 }
+
+type RegistryConfig = {
+  maxSeriesPerMetric: number;
+};
 
 export class MetricsRegistry implements IMetricsRegistry {
   private counters = new Map<string, Counter>();
   private gauges = new Map<string, Gauge>();
   private histograms = new Map<string, Histogram>();
 
-  counter(name: string) {
-    let instance = this.counters.get(name);
+  // A master set to track every name used, regardless of type
+  private registeredNames = new Map<string, MetricType>();
+  private readonly maxSeriesPerMetric: number;
 
+  constructor(config: RegistryConfig) {
+    this.maxSeriesPerMetric = config.maxSeriesPerMetric;
+  }
+
+  counter(name: string, help: string = '') {
+    this.validateName(name, 'counter');
+
+    let instance = this.counters.get(name);
     if (!instance) {
-      instance = new Counter(name);
+      instance = new Counter(name, help, this.maxSeriesPerMetric);
       this.counters.set(name, instance);
     }
 
     return instance;
   }
-  gauge(name: string) {
-    let instance = this.gauges.get(name);
+  gauge(name: string, help: string = '') {
+    this.validateName(name, 'gauge');
 
+    let instance = this.gauges.get(name);
     if (!instance) {
-      instance = new Gauge(name);
+      instance = new Gauge(name, help, this.maxSeriesPerMetric);
       this.gauges.set(name, instance);
     }
 
     return instance;
   }
 
-  histogram(name: string, config = { buckets: [0.1, 0.5, 1, 2, 5] }) {
+  histogram(
+    name: string,
+    help: string = '',
+    config = { buckets: [0.1, 0.5, 1, 2, 5] },
+  ) {
+    this.validateName(name, 'histogram');
+
     let instance = this.histograms.get(name);
     if (!instance) {
-      instance = new Histogram(name, config);
+      instance = new Histogram(name, help, this.maxSeriesPerMetric, config);
       this.histograms.set(name, instance);
     }
     return instance;
@@ -84,6 +109,7 @@ export class MetricsRegistry implements IMetricsRegistry {
     for (const counter of this.counters.values()) {
       entries.push({
         name: counter.name,
+        help: counter.help,
         type: 'counter',
         samples: this.mapToSamples(counter.getValues()),
       });
@@ -93,6 +119,7 @@ export class MetricsRegistry implements IMetricsRegistry {
     for (const gauge of this.gauges.values()) {
       entries.push({
         name: gauge.name,
+        help: gauge.help,
         type: 'gauge',
         samples: this.mapToSamples(gauge.getValues()),
       });
@@ -104,6 +131,7 @@ export class MetricsRegistry implements IMetricsRegistry {
 
       entries.push({
         name: hist.name,
+        help: hist.help,
         type: 'histogram',
         samples: data.map(([encodedLabels, state]) => ({
           encodedLabels,
@@ -136,6 +164,20 @@ export class MetricsRegistry implements IMetricsRegistry {
       value: stored.value,
     }));
   }
+
+  private validateName(name: string, type: MetricType) {
+    const existingType = this.registeredNames.get(name);
+
+    if (existingType && existingType !== type) {
+      throw new Error(
+        `Metric collision: Name "${name}" is already registered as a ${existingType}. Cannot re-register as a ${type}.`,
+      );
+    }
+
+    if (!existingType) {
+      this.registeredNames.set(name, type);
+    }
+  }
 }
 
 interface BoundCounter {
@@ -156,8 +198,16 @@ export class Counter {
   private values = new Map<string, StoredMetricValue>();
   private boundCache = new Map<string, BoundCounter>();
 
-  constructor(public readonly name: string) {
+  constructor(
+    public readonly name: string,
+    public readonly help: string,
+    private readonly limit: number,
+  ) {
     this.inc(0);
+  }
+
+  get cardinality(): number {
+    return this.values.size;
   }
 
   /**
@@ -169,6 +219,10 @@ export class Counter {
 
     let bound = this.boundCache.get(key);
     if (!bound) {
+      if (!this.values.has(key) && this.cardinality >= this.limit) {
+        console.warn(`[corelens] Cardinality limit reached for ${this.name}`);
+        return { inc: () => {} };
+      }
       bound = {
         inc: (amount = 1) => {
           const current = this.values.get(key);
@@ -204,8 +258,16 @@ export class Gauge {
   private values = new Map<string, StoredMetricValue>();
   private boundCache = new Map<string, BoundGauge>();
 
-  constructor(public readonly name: string) {
+  constructor(
+    public readonly name: string,
+    public readonly help: string,
+    private readonly limit: number,
+  ) {
     this.inc(0);
+  }
+
+  get cardinality(): number {
+    return this.values.size;
   }
 
   labels(labels: Labels): BoundGauge {
@@ -213,6 +275,11 @@ export class Gauge {
 
     let bound = this.boundCache.get(key);
     if (!bound) {
+      if (!this.values.has(key) && this.cardinality >= this.limit) {
+        console.warn(`[corelens] Cardinality limit reached for ${this.name}`);
+        return { inc: () => {}, dec: () => {}, set: () => {} };
+      }
+
       bound = {
         inc: (amount = 1) => {
           const current = this.values.get(key) ?? 0;
@@ -270,10 +337,16 @@ export class Histogram {
 
   constructor(
     public readonly name: string,
+    public readonly help: string,
+    private readonly limit: number,
     private readonly config: { buckets: number[] },
   ) {
     // Ensure buckets are sorted for the binary search/loop logic
     this.sortedBuckets = [...this.config.buckets].sort((a, b) => a - b);
+  }
+
+  get cardinality(): number {
+    return this.values.size;
   }
 
   labels(labels: Labels) {
@@ -281,6 +354,11 @@ export class Histogram {
     let bound = this.boundCache.get(key);
 
     if (!bound) {
+      if (!this.values.has(key) && this.cardinality >= this.limit) {
+        console.warn(`[corelens] Cardinality limit reached for ${this.name}`);
+        return { observe: () => {} };
+      }
+
       const current = this.values.get(key);
       if (!current) {
         this.values.set(key, {
@@ -354,14 +432,18 @@ function escapeLabelValue(val: string): string {
 }
 
 export class NoopMetricsRegistry implements IMetricsRegistry {
-  gauge(name: string): Gauge {
-    return new Gauge(name);
+  gauge(name: string, help: string = ''): Gauge {
+    return new Gauge(name, help, 1000);
   }
-  counter(name: string): Counter {
-    return new Counter(name);
+  counter(name: string, help: string = ''): Counter {
+    return new Counter(name, help, 1000);
   }
-  histogram(name: string, config: { buckets: number[] }): Histogram {
-    return new Histogram(name, config);
+  histogram(
+    name: string,
+    help: string = '',
+    config: { buckets: number[] },
+  ): Histogram {
+    return new Histogram(name, help, 1000, config);
   }
 
   snapshot(): MetricsSnapshot {

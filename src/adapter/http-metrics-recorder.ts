@@ -32,9 +32,14 @@ export class HttpMetricsRecorder {
     private metrics: IMetricsRegistry,
     private readonly config: HttpMetricsAdapterOptions,
   ) {
-    this.requestsTotal = this.metrics.counter('http_requests_total');
+    this.requestsTotal = this.metrics.counter(
+      'http_requests_total',
+      'Total number of HTTP requests processed, partitioned by method, route, and status code.',
+    );
+
     this.requestDurationSeconds = this.metrics.histogram(
       'http_request_duration_seconds',
+      'Duration of HTTP requests in seconds, partitioned by method, route, and status code.',
       { buckets: config.buckets },
     );
     this.ignoredRoutes = new Set(config.ignoredRoutes);

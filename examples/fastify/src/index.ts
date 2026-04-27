@@ -8,7 +8,7 @@ import {
 const fastify = Fastify({ logger: false }); // Disable default logger to use Corelens
 const port = 3100;
 
-const sdk = corelens({
+const lens = corelens({
   serviceName: 'fastify-test-app',
   logs: {
     enabled: true,
@@ -28,17 +28,24 @@ const sdk = corelens({
   },
 });
 
-const logger = sdk.logger;
-const metrics = sdk.metrics;
+const logger = lens.logger;
+const metrics = lens.metrics;
 const exporter = new PrometheusTextExporter();
 
 const adapter = new FastifyMetricsAdapter();
-adapter.register(fastify, sdk.httpRecorder);
+adapter.register(fastify, lens.httpRecorder);
 
-const requestTotal = metrics.counter('example_http_requests_total');
-const httpDur = metrics.histogram('example_http_request_duration_seconds', {
-  buckets: [0.01, 0.05, 0.1, 0.5, 1],
-});
+const requestTotal = metrics.counter(
+  'example_http_requests_total',
+  '[Custom] Total number of HTTP request sent to our server',
+);
+const httpDur = metrics.histogram(
+  'example_http_request_duration_seconds',
+  '[Custom] HTTP request duration sent to our server',
+  {
+    buckets: [0.01, 0.05, 0.1, 0.5, 1],
+  },
+);
 
 fastify.addHook('onResponse', async (request, reply) => {
   // Log request
@@ -81,11 +88,11 @@ fastify.get('/api/error', async (request, reply) => {
 
 fastify.get('/metrics', async (request, reply) => {
   reply.type('text/plain');
-  return exporter.render(sdk.getMetricsSnapshot());
+  return exporter.render(lens.getMetricsSnapshot());
 });
 
 fastify.get('/debug/stats', async () => {
-  return sdk.getStats();
+  return lens.getStats();
 });
 
 fastify.setNotFoundHandler((request, reply) => {
@@ -128,7 +135,7 @@ const gracefulShutdown = async () => {
   await fastify.close();
   console.log('Fastify server closed.');
 
-  await sdk.shutdown();
+  await lens.shutdown();
   console.log('Corelens SDK flushed and shut down.');
 
   process.exit(0);

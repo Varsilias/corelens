@@ -1,6 +1,6 @@
 import { LogLevel } from './logger';
 
-export const MAX_QUEUE_SIZE = 4 * 1024 * 1024;
+export const DEFAULT_MAX_QUEUE_SIZE = 4 * 1024 * 1024;
 export const DEFAULT_STREAM_HIGHWATERMARK = 64 * 1024;
 
 export type FullQueuePolicy = 'drop-newest' | 'drop-oldest' | 'block';
@@ -32,6 +32,7 @@ export type CorelensMetricsConfig = {
     buckets?: number[];
     ignoredRoutes?: string[];
   };
+  maxSeriesPerMetric?: number;
 };
 
 export type CorelensConfig = {
@@ -75,6 +76,7 @@ export type NormalisedMetricsConfig = {
     buckets: number[];
     ignoredRoutes: string[];
   };
+  maxSeriesPerMetric: number;
 };
 
 export type NormalisedConfig = {

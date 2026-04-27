@@ -5,8 +5,8 @@ import {
 import { LogsModule, MetricsModule, TracesModule } from '../modules';
 import {
   CorelensConfig,
+  DEFAULT_MAX_QUEUE_SIZE,
   DEFAULT_STREAM_HIGHWATERMARK,
-  MAX_QUEUE_SIZE,
   NormalisedConfig,
 } from './config';
 import { ILogger, Logger } from './logger';
@@ -140,7 +140,7 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
     logs: {
       enabled: cfg?.logs?.enabled ?? true,
       fullQueuePolicy: cfg?.logs?.fullQueuePolicy ?? 'drop-newest',
-      maxQueueBytes: cfg?.logs?.maxQueueBytes ?? MAX_QUEUE_SIZE,
+      maxQueueBytes: cfg?.logs?.maxQueueBytes ?? DEFAULT_MAX_QUEUE_SIZE,
       reportStatsOnShutdown: cfg?.logs?.reportStatsOnShutdown ?? false,
       timestamp: {
         format: cfg?.logs?.timestamp?.format ?? 'iso',
@@ -167,6 +167,7 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
           '/health',
         ],
       },
+      maxSeriesPerMetric: cfg?.metrics?.maxSeriesPerMetric ?? 1000,
     },
     traces: cfg.traces ?? false,
     lifecycle: {
