@@ -130,44 +130,47 @@ export function corelens(config: CorelensConfig): Corelens {
   return sdk;
 }
 
-function normaliseConfig(corelensConfig: CorelensConfig): NormalisedConfig {
-  if (!corelensConfig.serviceName) {
+function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
+  if (!cfg.serviceName) {
     throw new Error('serviceName is required during initialisation');
   }
 
   const config = {
-    serviceName: corelensConfig.serviceName,
+    serviceName: cfg.serviceName,
     logs: {
-      enabled: corelensConfig?.logs?.enabled ?? true,
-      fullQueuePolicy: corelensConfig?.logs?.fullQueuePolicy ?? 'drop-newest',
-      maxQueueBytes: corelensConfig?.logs?.maxQueueBytes ?? MAX_QUEUE_SIZE,
-      reportStatsOnShutdown:
-        corelensConfig?.logs?.reportStatsOnShutdown ?? false,
+      enabled: cfg?.logs?.enabled ?? true,
+      fullQueuePolicy: cfg?.logs?.fullQueuePolicy ?? 'drop-newest',
+      maxQueueBytes: cfg?.logs?.maxQueueBytes ?? MAX_QUEUE_SIZE,
+      reportStatsOnShutdown: cfg?.logs?.reportStatsOnShutdown ?? false,
+      timestamp: {
+        format: cfg?.logs?.timestamp?.format ?? 'iso',
+      },
       writer: {
         highWaterMark:
-          corelensConfig?.logs?.writer?.highWaterMark ??
-          DEFAULT_STREAM_HIGHWATERMARK,
+          cfg?.logs?.writer?.highWaterMark ?? DEFAULT_STREAM_HIGHWATERMARK,
       },
+      format: cfg?.logs?.format ?? 'json',
+      colorize: cfg?.logs?.colorize ?? false,
+      level: cfg?.logs?.level ?? 'info',
     },
     metrics: {
-      enabled: corelensConfig?.metrics?.enabled ?? false,
+      enabled: cfg?.metrics?.enabled ?? false,
       runtime: {
-        enabled: corelensConfig?.metrics?.runtime?.enabled ?? false,
-        intervalMs: corelensConfig?.metrics?.runtime?.intervalMs ?? 15000,
+        enabled: cfg?.metrics?.runtime?.enabled ?? false,
+        intervalMs: cfg?.metrics?.runtime?.intervalMs ?? 15000,
       },
       http: {
-        enabled: corelensConfig?.metrics?.http?.enabled ?? false,
-        buckets: corelensConfig?.metrics?.http?.buckets ?? DEFAULT_HTTP_BUCKETS,
-        ignoredRoutes: corelensConfig?.metrics?.http?.ignoredRoutes ?? [
+        enabled: cfg?.metrics?.http?.enabled ?? false,
+        buckets: cfg?.metrics?.http?.buckets ?? DEFAULT_HTTP_BUCKETS,
+        ignoredRoutes: cfg?.metrics?.http?.ignoredRoutes ?? [
           '/metrics',
           '/health',
         ],
       },
     },
-    traces: corelensConfig.traces ?? false,
+    traces: cfg.traces ?? false,
     lifecycle: {
-      handleProcessSignals:
-        corelensConfig?.lifecycle?.handleProcessSignals ?? false,
+      handleProcessSignals: cfg?.lifecycle?.handleProcessSignals ?? false,
     },
   } as NormalisedConfig;
 

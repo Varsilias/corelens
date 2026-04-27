@@ -1,3 +1,5 @@
+import { LogLevel } from './logger';
+
 export const MAX_QUEUE_SIZE = 4 * 1024 * 1024;
 export const DEFAULT_STREAM_HIGHWATERMARK = 64 * 1024;
 
@@ -11,6 +13,12 @@ export type CorelensLogConfig = {
   writer?: {
     highWaterMark: number;
   };
+  timestamp?: {
+    format: 'epoch' | 'iso';
+  };
+  format?: 'json' | 'pretty';
+  colorize?: boolean;
+  level?: LogLevel;
 };
 
 export type CorelensMetricsConfig = {
@@ -48,6 +56,12 @@ export type NormalisedLogConfig = {
   writer: {
     highWaterMark: number;
   };
+  timestamp: {
+    format: 'epoch' | 'iso';
+  };
+  format: 'json' | 'pretty';
+  colorize: boolean;
+  level: LogLevel;
 };
 
 export type NormalisedMetricsConfig = {

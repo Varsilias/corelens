@@ -14,6 +14,11 @@ const sdk = corelens({
     enabled: true,
     maxQueueBytes: 1024 * 1024, // 1MB for testing
     fullQueuePolicy: 'drop-oldest',
+    timestamp: {
+      format: 'iso',
+    },
+    format: 'json',
+    colorize: true,
   },
   metrics: {
     enabled: true,
@@ -104,7 +109,7 @@ fastify.setErrorHandler((error: any, request, reply) => {
 const start = async () => {
   try {
     await fastify.listen({ port });
-    console.log(`fastify-test-app running on port ${port}`);
+    logger.info(`fastify-test-app running on port ${port}`);
   } catch (err: any) {
     if (err.code === 'EADDRINUSE') {
       console.error(`Port ${port} is already in use!`);

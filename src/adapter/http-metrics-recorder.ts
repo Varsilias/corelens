@@ -40,7 +40,6 @@ export class HttpMetricsRecorder {
     this.ignoredRoutes = new Set(config.ignoredRoutes);
   }
 
-  // The Guard: Adapters should check this before registering hooks
   get isEnabled(): boolean {
     return this.config.enabled;
   }

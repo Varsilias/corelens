@@ -19,29 +19,45 @@ export interface ILogger {
 }
 
 export class Logger implements ILogger {
-  private threshold =
-    LEVEL_PRIORITY[(process.env.CORELENS_LOG_LEVEL as LogLevel) || 'info'];
+  private threshold: number;
+  private serviceName: string;
+  private getTimestamp: () => number | string;
 
   constructor(
-    private coreLensConfig: NormalisedConfig,
+    private config: NormalisedConfig,
     private pipeline: IPipeline,
-  ) {}
-
-  private createLogMethod(level: LogLevel) {
-    return (message: string, context?: Record<string, any>) => {
-      if (LEVEL_PRIORITY[level] < this.threshold) {
-        return;
-      }
-      this.pipeline.handle({
-        level,
-        message,
-        context,
-        timestamp: Date.now(),
-      } as LogEvent);
-    };
+  ) {
+    this.serviceName = config.serviceName;
+    this.threshold = LEVEL_PRIORITY[config.logs.level];
+    this.getTimestamp =
+      config.logs.timestamp.format === 'epoch'
+        ? () => Date.now()
+        : () => new Date().toISOString();
   }
-  info = this.createLogMethod('info');
-  error = this.createLogMethod('error');
-  debug = this.createLogMethod('debug');
-  warn = this.createLogMethod('warn');
+
+  info(m: string, c?: Record<string, any>) {
+    this.log('info', m, c);
+  }
+  error(m: string, c?: Record<string, any>) {
+    this.log('error', m, c);
+  }
+  debug(m: string, c?: Record<string, any>) {
+    this.log('debug', m, c);
+  }
+  warn(m: string, c?: Record<string, any>) {
+    this.log('warn', m, c);
+  }
+
+  private log(level: LogLevel, message: string, context?: Record<string, any>) {
+    if (LEVEL_PRIORITY[level] < this.threshold) {
+      return;
+    }
+    this.pipeline.handle({
+      level,
+      message,
+      serviceName: this.serviceName,
+      context,
+      timestamp: this.getTimestamp(),
+    } as LogEvent);
+  }
 }

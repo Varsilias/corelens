@@ -11,6 +11,7 @@ type PipelineConfig = {
   writer: Writable;
   maxQueueBytes: number;
   fullQueuePolicy: FullQueuePolicy;
+  format: (event: LogEvent) => string;
 };
 
 type PipelineStats = {
@@ -147,7 +148,7 @@ export class LogsPipeline implements IPipeline {
 
     while (this.queue.length > 0) {
       const chunk = this.queue[0];
-      const payload = JSON.stringify(chunk.event) + '\n';
+      const payload = this.config.format(chunk.event) + '\n';
 
       const ok = this.config.writer.write(payload);
 
