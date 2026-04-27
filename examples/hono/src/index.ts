@@ -1,6 +1,10 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { corelens, PrometheusTextExporter } from '@varsilias/corelens'; // Your library
+import {
+  corelens,
+  HonoMetricsAdapter,
+  PrometheusTextExporter,
+} from '@varsilias/corelens'; // Your library
 
 const app = new Hono();
 const port = 3200;
@@ -15,16 +19,26 @@ const sdk = corelens({
   metrics: {
     enabled: true,
     runtime: {
-      enabled: true,
+      enabled: false,
       intervalMs: 2000,
+    },
+    http: {
+      enabled: true,
     },
   },
 });
 
 const logger = sdk.logger;
 const metrics = sdk.metrics;
+
+const adapter = new HonoMetricsAdapter();
+adapter.register(app, sdk.httpRecorder);
+
 const exporter = new PrometheusTextExporter();
-const requestTotal = metrics.counter('requests_total');
+const requestTotal = metrics.counter('example_http_requests_total');
+const httpDur = metrics.histogram('example_http_request_duration_seconds', {
+  buckets: [0.01, 0.05, 0.1, 0.5, 1],
+});
 
 app.use('*', async (c, next) => {
   const start = Date.now();
@@ -44,6 +58,20 @@ app.get('/', (c) => c.text('Corelens Hono Test Server is running!'));
 app.get('/api/data', (c) => {
   requestTotal.inc();
   return c.json({ data: 'Hello from Hono' });
+});
+
+app.get('/api/work/:id', async (c) => {
+  requestTotal.inc();
+  const start = performance.now();
+
+  // Simulate varying work
+  const delay = Math.random() * 100;
+  await new Promise((r) => setTimeout(r, delay));
+
+  const duration = (performance.now() - start) / 1000;
+  httpDur.observe(duration, { method: 'GET', path: '/work' });
+
+  return c.text('done');
 });
 
 app.get('/api/error', (c) => {

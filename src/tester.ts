@@ -1,86 +1,160 @@
 import { CorelensConfig } from './core/config';
 import { corelens } from './core/orchestrator';
 
-const config = {
-  serviceName: 'payment-service',
-  logs: {
-    enabled: true,
-    fullQueuePolicy: 'drop-newest',
-    maxQueueBytes: 4 * 1024 * 1024,
-    reportStatsOnShutdown: true,
-    writer: {
-      highWaterMark: 64 * 1024,
-    },
-  },
-  metrics: {
-    enabled: true,
-    runtime: {
-      enabled: true,
-      intervalMs: 10000,
-    },
-  },
-  traces: true,
-  lifecycle: {
-    handleProcessSignals: true,
-  },
-} as CorelensConfig;
+// const config = {
+//   serviceName: 'payment-service',
+//   logs: {
+//     enabled: true,
+//     fullQueuePolicy: 'drop-newest',
+//     maxQueueBytes: 4 * 1024 * 1024,
+//     reportStatsOnShutdown: true,
+//     writer: {
+//       highWaterMark: 64 * 1024,
+//     },
+//   },
+//   metrics: {
+//     enabled: true,
+//     runtime: {
+//       enabled: false,
+//       intervalMs: 10000,
+//     },
+//   },
+//   traces: true,
+//   lifecycle: {
+//     handleProcessSignals: true,
+//   },
+// } as CorelensConfig;
 
-async function main() {
-  //   const startMemory = process.memoryUsage();
-  //   const start = performance.now();
-  //   const lens = corelens(config);
-  //   const logger = lens.logger;
-  //   for (let i = 0; i < 100_000; i++) {
-  //     logger.info('test', { i });
-  //   }
-  //   const produceEnd = performance.now();
-  //   const flushStart = performance.now();
-  //   await lens.shutdown();
-  //   const flushEnd = performance.now();
-  //   const endMemory = process.memoryUsage();
-  //   const memoryDiff = {
-  //     rss: (endMemory.rss - startMemory.rss) / 1024 / 1024,
-  //     heapUsed: (endMemory.heapUsed - startMemory.heapUsed) / 1024 / 1024,
-  //   };
-  //   console.log({
-  //     produceTimeMs: produceEnd - start,
-  //     flushTimeMs: flushEnd - flushStart,
-  //     totalTimeMs: flushEnd - start,
-  //     memoryDiff,
-  //     stats: lens.getStats(),
-  //   });
+// async function main() {
+//   //   const startMemory = process.memoryUsage();
+//   //   const start = performance.now();
+//   //   const lens = corelens(config);
+//   //   const logger = lens.logger;
+//   //   for (let i = 0; i < 100_000; i++) {
+//   //     logger.info('test', { i });
+//   //   }
+//   //   const produceEnd = performance.now();
+//   //   const flushStart = performance.now();
+//   //   await lens.shutdown();
+//   //   const flushEnd = performance.now();
+//   //   const endMemory = process.memoryUsage();
+//   //   const memoryDiff = {
+//   //     rss: (endMemory.rss - startMemory.rss) / 1024 / 1024,
+//   //     heapUsed: (endMemory.heapUsed - startMemory.heapUsed) / 1024 / 1024,
+//   //   };
+//   //   console.log({
+//   //     produceTimeMs: produceEnd - start,
+//   //     flushTimeMs: flushEnd - flushStart,
+//   //     totalTimeMs: flushEnd - start,
+//   //     memoryDiff,
+//   //     stats: lens.getStats(),
+//   //   });
 
-  const startMemory = process.memoryUsage();
-  const start = performance.now();
+//   const startMemory = process.memoryUsage();
+//   const start = performance.now();
 
-  const lens = corelens(config);
-  const metrics = lens.metrics;
+//   const lens = corelens(config);
+//   const metrics = lens.metrics;
 
-  const counter = metrics.counter('requests_total');
-  counter.inc();
-  counter.inc(5);
+//   // const counter = metrics.counter('requests_total');
+//   // counter.inc();
+//   // counter.inc(5);
 
-  const memory = metrics.gauge('memory_usage_bytes');
-  memory.set(process.memoryUsage().heapUsed);
+//   // const memory = metrics.gauge('memory_usage_bytes');
+//   // memory.set(process.memoryUsage().heapUsed);
 
-  const snapshot = metrics.snapshot();
-  console.log(JSON.stringify(snapshot, null, 2));
+//   const h = metrics.histogram('test_duration', {
+//     buckets: [1, 2, 5],
+//   });
 
-  const end = performance.now();
-  const endMemory = process.memoryUsage();
+//   h.observe(1);
+//   h.observe(3);
+//   h.observe(6);
 
-  const memoryDiff = {
-    rss: (endMemory.rss - startMemory.rss) / 1024 / 1024,
-    heapUsed: (endMemory.heapUsed - startMemory.heapUsed) / 1024 / 1024,
-  };
-  console.log({
-    totalTimeMs: end - start,
-    memoryDiff,
-    // stats: lens.getStats(),
+//   console.log(JSON.stringify(metrics.snapshot(), null, 2));
+
+//   h.observe(1, { route: '/a' });
+//   h.observe(2, { route: '/b' });
+
+//   console.log(JSON.stringify(metrics.snapshot(), null, 2));
+
+//   const end = performance.now();
+//   const endMemory = process.memoryUsage();
+
+//   const memoryDiff = {
+//     rss: (endMemory.rss - startMemory.rss) / 1024 / 1024,
+//     heapUsed: (endMemory.heapUsed - startMemory.heapUsed) / 1024 / 1024,
+//   };
+//   console.log({
+//     totalTimeMs: end - start,
+//     memoryDiff,
+//     // stats: lens.getStats(),
+//   });
+// }
+
+// main().catch((err) => {
+//   console.error(err);
+//   process.exitCode = 1;
+// });
+
+async function stressTestInternal() {
+  const lens = corelens({
+    serviceName: 'stress-test',
+    metrics: { enabled: true },
   });
+
+  const iterations = 1_000_000;
+  const h = lens.metrics.histogram('stress_duration', {
+    buckets: [0.1, 0.5, 1, 2, 5],
+  });
+  const c = lens.metrics.counter('stress_counter');
+
+  console.log(
+    `--- Starting Internal Stress: ${iterations.toLocaleString()} iterations ---`,
+  );
+
+  const startMemory = process.memoryUsage().heapUsed;
+  const startTime = performance.now();
+
+  // Test 1: Raw Observation (includes label serialization every time)
+  for (let i = 0; i < iterations; i++) {
+    h.observe(Math.random() * 6, { method: 'GET', status: '200' });
+    if (i % (iterations / 4) === 0) c.inc(1);
+  }
+
+  const midTime = performance.now();
+  const midMemory = process.memoryUsage().heapUsed;
+
+  // Test 2: Pre-bound Observation (The "Hot Path" optimization)
+  const boundH = h.labels({ method: 'POST', status: '201' });
+  for (let i = 0; i < iterations; i++) {
+    boundH.observe(Math.random() * 6);
+  }
+
+  const endTime = performance.now();
+  const endMemory = process.memoryUsage().heapUsed;
+
+  console.log('--- Results ---');
+  console.log(
+    `Raw Path: ${(midTime - startTime).toFixed(2)}ms (${(iterations / (midTime - startTime)).toFixed(2)} ops/ms)`,
+  );
+  console.log(
+    `Bound Path: ${(endTime - midTime).toFixed(2)}ms (${(iterations / (endTime - midTime)).toFixed(2)} ops/ms)`,
+  );
+  console.log(
+    `Memory Delta: ${((endMemory - startMemory) / 1024 / 1024).toFixed(2)}MB`,
+  );
+
+  // Verify Correctness
+  const snapshot = lens.metrics.snapshot();
+  console.log('--- Correctness Check ---');
+  console.log(
+    JSON.stringify(
+      snapshot.entries.find((e) => e.name === 'stress_duration'),
+      null,
+      2,
+    ),
+  );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+stressTestInternal();

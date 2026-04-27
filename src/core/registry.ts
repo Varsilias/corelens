@@ -7,10 +7,10 @@ type StoredMetricValue = {
   value: number;
 };
 
-type MetricSample = {
+export type MetricSample = {
   encodedLabels: string;
   labels: Labels;
-  value: number;
+  value: number | HistogramSample;
 };
 
 export type RegistryEntry = {
@@ -23,16 +23,29 @@ export type MetricsSnapshot = {
   entries: RegistryEntry[];
 };
 
+export type HistogramSample = {
+  sum: number;
+  count: number;
+  buckets: Array<{ le: number; value: number }>;
+};
+
+export type HistogramValue = {
+  sum: number;
+  count: number;
+  bucketValues: number[];
+  labels: Labels;
+};
 export interface IMetricsRegistry {
   gauge(name: string): Gauge;
   counter(name: string): Counter;
-  histogram(name: string): void;
+  histogram(name: string, config: { buckets: number[] }): Histogram;
   snapshot(): MetricsSnapshot;
 }
 
 export class MetricsRegistry implements IMetricsRegistry {
   private counters = new Map<string, Counter>();
   private gauges = new Map<string, Gauge>();
+  private histograms = new Map<string, Histogram>();
 
   counter(name: string) {
     let instance = this.counters.get(name);
@@ -54,7 +67,15 @@ export class MetricsRegistry implements IMetricsRegistry {
 
     return instance;
   }
-  histogram(name: string) {}
+
+  histogram(name: string, config = { buckets: [0.1, 0.5, 1, 2, 5] }) {
+    let instance = this.histograms.get(name);
+    if (!instance) {
+      instance = new Histogram(name, config);
+      this.histograms.set(name, instance);
+    }
+    return instance;
+  }
 
   snapshot(): MetricsSnapshot {
     const entries: RegistryEntry[] = [];
@@ -74,6 +95,28 @@ export class MetricsRegistry implements IMetricsRegistry {
         name: gauge.name,
         type: 'gauge',
         samples: this.mapToSamples(gauge.getValues()),
+      });
+    }
+
+    // Process Histogram (neutral shape)
+    for (const hist of this.histograms.values()) {
+      const { buckets, data } = hist.getValues();
+
+      entries.push({
+        name: hist.name,
+        type: 'histogram',
+        samples: data.map(([encodedLabels, state]) => ({
+          encodedLabels,
+          labels: state.labels,
+          value: {
+            sum: state.sum,
+            count: state.count,
+            buckets: buckets.map((le, index) => ({
+              le,
+              value: state.bucketValues[index],
+            })),
+          },
+        })),
       });
     }
 
@@ -103,6 +146,10 @@ interface BoundGauge {
   inc(amount?: number): void;
   dec(amount?: number): void;
   set(value: number): void;
+}
+
+interface BoundHistogram {
+  observe(value: number): void;
 }
 
 export class Counter {
@@ -216,6 +263,67 @@ export class Gauge {
   }
 }
 
+export class Histogram {
+  private values = new Map<string, HistogramValue>();
+  private boundCache = new Map<string, BoundHistogram>();
+  private readonly sortedBuckets: number[];
+
+  constructor(
+    public readonly name: string,
+    private readonly config: { buckets: number[] },
+  ) {
+    // Ensure buckets are sorted for the binary search/loop logic
+    this.sortedBuckets = [...this.config.buckets].sort((a, b) => a - b);
+  }
+
+  labels(labels: Labels) {
+    const key = serializeLabels(labels);
+    let bound = this.boundCache.get(key);
+
+    if (!bound) {
+      const current = this.values.get(key);
+      if (!current) {
+        this.values.set(key, {
+          sum: 0,
+          count: 0,
+          bucketValues: new Array(this.sortedBuckets.length).fill(0),
+          labels,
+        });
+      }
+
+      const state = this.values.get(key)!;
+      bound = {
+        observe: (value: number) => {
+          state.sum += value;
+          state.count++;
+
+          // Increment all buckets where value <= bucket boundary
+          // This is the "Cumulative" part of the histogram
+          for (let i = 0; i < this.sortedBuckets.length; i++) {
+            if (value <= this.sortedBuckets[i]) {
+              state.bucketValues[i]++;
+            }
+          }
+        },
+      };
+      this.boundCache.set(key, bound);
+    }
+
+    return bound;
+  }
+
+  observe(value: number, labels: Labels = {}) {
+    this.labels(labels).observe(value);
+  }
+
+  getValues() {
+    return {
+      buckets: this.sortedBuckets,
+      data: Array.from(this.values.entries()),
+    };
+  }
+}
+
 function serializeLabels(labels: Labels): string {
   const keys = Object.keys(labels);
   const len = keys.length;
@@ -252,7 +360,10 @@ export class NoopMetricsRegistry implements IMetricsRegistry {
   counter(name: string): Counter {
     return new Counter(name);
   }
-  histogram(name: string): void {}
+  histogram(name: string, config: { buckets: number[] }): Histogram {
+    return new Histogram(name, config);
+  }
+
   snapshot(): MetricsSnapshot {
     return {} as MetricsSnapshot;
   }

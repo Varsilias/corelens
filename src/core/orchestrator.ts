@@ -1,3 +1,7 @@
+import {
+  DEFAULT_HTTP_BUCKETS,
+  HttpMetricsRecorder,
+} from '../adapter/http-metrics-recorder';
 import { LogsModule, MetricsModule, TracesModule } from '../modules';
 import {
   CorelensConfig,
@@ -22,6 +26,7 @@ class Corelens {
   // public APIs
   public logger: ILogger;
   public metrics: IMetricsRegistry;
+  public httpRecorder: HttpMetricsRecorder;
 
   constructor(public config: NormalisedConfig) {
     const logsModule = new LogsModule({ config });
@@ -46,6 +51,11 @@ class Corelens {
     this.metrics = config.metrics.enabled
       ? metricsModule.getRegistry()
       : new NoopMetricsRegistry();
+    this.httpRecorder = new HttpMetricsRecorder(this.metrics, {
+      enabled: config.metrics.http.enabled,
+      buckets: config.metrics.http.buckets,
+      ignoredRoutes: config.metrics.http.ignoredRoutes,
+    });
 
     // Traces
     if (config.traces) this.modules.push(new TracesModule({ config }));
@@ -144,6 +154,14 @@ function normaliseConfig(corelensConfig: CorelensConfig): NormalisedConfig {
       runtime: {
         enabled: corelensConfig?.metrics?.runtime?.enabled ?? false,
         intervalMs: corelensConfig?.metrics?.runtime?.intervalMs ?? 15000,
+      },
+      http: {
+        enabled: corelensConfig?.metrics?.http?.enabled ?? false,
+        buckets: corelensConfig?.metrics?.http?.buckets ?? DEFAULT_HTTP_BUCKETS,
+        ignoredRoutes: corelensConfig?.metrics?.http?.ignoredRoutes ?? [
+          '/metrics',
+          '/health',
+        ],
       },
     },
     traces: corelensConfig.traces ?? false,

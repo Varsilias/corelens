@@ -1,5 +1,9 @@
 import express from 'express';
-import { corelens, PrometheusTextExporter } from '@varsilias/corelens'; // Your library
+import {
+  corelens,
+  PrometheusTextExporter,
+  ExpressMetricsAdapter,
+} from '@varsilias/corelens'; // Your library
 
 const app = express();
 const port = 3000;
@@ -13,11 +17,22 @@ const sdk = corelens({
   },
   metrics: {
     enabled: true,
+    http: {
+      enabled: true,
+    },
   },
 });
 
 const logger = sdk.logger;
 const metrics = sdk.metrics;
+
+const adapter = new ExpressMetricsAdapter();
+adapter.register(app, sdk.httpRecorder);
+
+const httpDur = metrics.histogram('example_http_request_duration_seconds', {
+  buckets: [0.01, 0.05, 0.1, 0.5, 1],
+});
+
 const exporter = new PrometheusTextExporter();
 
 app.use((req, res, next) => {
@@ -35,7 +50,7 @@ app.use((req, res, next) => {
 });
 
 // metrics
-const requestTotal = metrics.counter('requests_total');
+const requestTotal = metrics.counter('example_http_requests_total');
 
 app.get('/', (req, res) => {
   res.send('Corelens Test Server is running!');
@@ -44,6 +59,20 @@ app.get('/', (req, res) => {
 app.get('/api/data', (req, res) => {
   requestTotal.inc(); // increment request total
   res.json({ data: 'Hello from Corelens' });
+});
+
+app.get('/api/work/:id', async (req, res) => {
+  requestTotal.inc();
+  const start = performance.now();
+
+  // Simulate varying work
+  const delay = Math.random() * 100;
+  await new Promise((r) => setTimeout(r, delay));
+
+  const duration = (performance.now() - start) / 1000;
+  httpDur.observe(duration, { method: 'GET', path: '/work' });
+
+  return res.send('done');
 });
 
 app.get('/api/error', (req, res) => {

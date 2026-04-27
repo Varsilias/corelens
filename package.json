@@ -37,12 +37,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Varsilias/otel"
+    "url": "https://github.com/Varsilias/corelens"
   },
   "bugs": {
-    "url": "https://github.com/Varsilias/otel/issues"
+    "url": "https://github.com/Varsilias/corelens/issues"
   },
-  "homepage": "https://github.com/Varsilias/otel#readme",
+  "homepage": "https://github.com/Varsilias/corelens#readme",
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
@@ -53,12 +53,31 @@
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
+    "express": "^5.2.1",
+    "fastify": "^5.8.5",
+    "hono": "^4.12.15",
     "husky": "^9.1.7",
     "jest": "^30.3.0",
     "prettier": "^3.8.1",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "express": "^5.2.1",
+    "fastify": "^5.8.5",
+    "hono": "^4.12.15"
+  },
+  "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    },
+    "fastify": {
+      "optional": true
+    }
   },
   "overrides": {
     "glob": "^10.5.0",

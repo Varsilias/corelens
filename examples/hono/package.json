@@ -6,7 +6,7 @@
   "scripts": {
     "start": "nodemon --watch src --ext ts --exec 'ts-node' src/index.ts",
     "dev": "nodemon --watch src --watch ../../src --ext ts --exec 'ts-node' src/index.ts",
-    "bench": "autocannon -c 100 -d 20 http://localhost:3200/api/data"
+    "bench": "autocannon -c 100 -d 20 http://localhost:3200/api/work/12"
   },
   "keywords": [
     "corelens",

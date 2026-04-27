@@ -19,6 +19,11 @@ export type CorelensMetricsConfig = {
     enabled: boolean;
     intervalMs: number;
   };
+  http?: {
+    enabled: boolean;
+    buckets?: number[];
+    ignoredRoutes?: string[];
+  };
 };
 
 export type CorelensConfig = {
@@ -50,6 +55,11 @@ export type NormalisedMetricsConfig = {
   runtime: {
     enabled: boolean;
     intervalMs: number;
+  };
+  http: {
+    enabled: boolean;
+    buckets: number[];
+    ignoredRoutes: string[];
   };
 };
 

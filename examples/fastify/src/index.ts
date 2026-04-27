@@ -1,5 +1,9 @@
 import Fastify from 'fastify';
-import { corelens, PrometheusTextExporter } from '@varsilias/corelens'; // Your library
+import {
+  corelens,
+  FastifyMetricsAdapter,
+  PrometheusTextExporter,
+} from '@varsilias/corelens';
 
 const fastify = Fastify({ logger: false }); // Disable default logger to use Corelens
 const port = 3100;
@@ -13,6 +17,9 @@ const sdk = corelens({
   },
   metrics: {
     enabled: true,
+    http: {
+      enabled: true,
+    },
   },
 });
 
@@ -20,7 +27,13 @@ const logger = sdk.logger;
 const metrics = sdk.metrics;
 const exporter = new PrometheusTextExporter();
 
-const requestTotal = metrics.counter('requests_total');
+const adapter = new FastifyMetricsAdapter();
+adapter.register(fastify, sdk.httpRecorder);
+
+const requestTotal = metrics.counter('example_http_requests_total');
+const httpDur = metrics.histogram('example_http_request_duration_seconds', {
+  buckets: [0.01, 0.05, 0.1, 0.5, 1],
+});
 
 fastify.addHook('onResponse', async (request, reply) => {
   // Log request
@@ -41,6 +54,20 @@ fastify.get('/api/data', async () => {
   return { data: 'Hello from Fastify' };
 });
 
+fastify.get('/api/work/:id', async (requesr, reply) => {
+  requestTotal.inc();
+  const start = performance.now();
+
+  // Simulate varying work
+  const delay = Math.random() * 100;
+  await new Promise((r) => setTimeout(r, delay));
+
+  const duration = (performance.now() - start) / 1000;
+  httpDur.observe(duration, { method: 'GET', path: '/work' });
+
+  return reply.send('done');
+});
+
 fastify.get('/api/error', async (request, reply) => {
   requestTotal.inc();
   logger.error('Critical API Failure', { code: 'ERR_500' });
@@ -49,7 +76,7 @@ fastify.get('/api/error', async (request, reply) => {
 
 fastify.get('/metrics', async (request, reply) => {
   reply.type('text/plain');
-  return exporter.render(sdk.metrics.snapshot());
+  return exporter.render(sdk.getMetricsSnapshot());
 });
 
 fastify.get('/debug/stats', async () => {
