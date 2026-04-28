@@ -1,5 +1,5 @@
-import { LogEvent } from '../modules';
-import { NormalisedConfig } from './config';
+import { LogEvent } from '../../modules';
+import { NormalisedConfig } from '../config';
 import { IPipeline } from './pipeline';
 
 export type LogLevel = 'info' | 'error' | 'debug' | 'warn';

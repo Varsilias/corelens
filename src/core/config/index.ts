@@ -1,4 +1,4 @@
-import { LogLevel } from './logger';
+import { LogLevel } from '../logger';
 
 export const DEFAULT_MAX_QUEUE_SIZE = 4 * 1024 * 1024;
 export const DEFAULT_STREAM_HIGHWATERMARK = 64 * 1024;
@@ -88,3 +88,13 @@ export type NormalisedConfig = {
     handleProcessSignals: boolean;
   };
 };
+
+export type ModuleContext = {
+  config: NormalisedConfig;
+};
+
+export interface Module {
+  init(): void;
+  start(): void;
+  stop(): Promise<void>;
+}

@@ -2,7 +2,7 @@ import {
   HistogramSample,
   MetricSample,
   MetricsSnapshot,
-} from '../core/registry';
+} from '../core/metrics/registry';
 
 export class PrometheusTextExporter {
   render(snapshot: MetricsSnapshot): string {

@@ -1,7 +1,7 @@
-import { Module } from '../../core/modules';
-import { ModuleContext } from '../../core/context';
-import { LogsPipeline } from '../../core/pipeline';
-import { CorelensWriter } from '../../core/writer';
+import { Module } from '../../core/config';
+import { ModuleContext } from '../../core/config';
+import { LogsPipeline } from '../../core/logger/pipeline';
+import { CorelensWriter } from '../../core/logger/writer';
 
 export type LogEvent = {
   level: string;

@@ -1,5 +1,5 @@
-import { Module } from '../../core/modules';
-import { ModuleContext } from '../../core/context';
+import { Module } from '../../core/config';
+import { ModuleContext } from '../../core/config';
 
 export class TracesModule implements Module {
   constructor(private config: ModuleContext) {}

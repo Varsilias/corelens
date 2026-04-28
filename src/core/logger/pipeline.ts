@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream';
-import { LogEvent } from '../modules';
-import { FullQueuePolicy } from './config';
+import { LogEvent } from '../../modules';
+import { FullQueuePolicy } from '../config';
 
 type QueueItem = {
   event: LogEvent;

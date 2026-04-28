@@ -10,9 +10,9 @@ import {
   NormalisedConfig,
 } from './config';
 import { ILogger, Logger } from './logger';
-import { Module } from './modules';
-import { NoopPipeline } from './pipeline';
-import { IMetricsRegistry, NoopMetricsRegistry } from './registry';
+import { Module } from './config';
+import { NoopPipeline } from './logger/pipeline';
+import { IMetricsRegistry, NoopMetricsRegistry } from './metrics/registry';
 
 class Corelens {
   private modules: Module[] = [];
