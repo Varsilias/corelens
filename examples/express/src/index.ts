@@ -21,10 +21,14 @@ const lens = corelens({
       enabled: true,
     },
   },
+  traces: {
+    enabled: true,
+  },
 });
 
 const logger = lens.logger;
 const metrics = lens.metrics;
+const tracer = lens.tracer;
 
 const adapter = new ExpressMetricsAdapter();
 adapter.register(app, lens.httpRecorder);
@@ -40,17 +44,24 @@ const httpDur = metrics.histogram(
 const exporter = new PrometheusTextExporter();
 
 app.use((req, res, next) => {
+  const span = tracer.startSpan(`${req.method} ${req.url}`);
   const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    logger.info(`Request processed`, {
-      method: req.method,
-      path: req.path,
-      status: res.statusCode,
-      duration: `${duration}ms`,
+
+  tracer.runInContext(span, () => {
+    const boundFinish = tracer.bindToContext(() => {
+      const duration = Date.now() - start;
+      logger.info(`Request processed`, {
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        duration: `${duration}ms`,
+      });
+
+      span.end();
     });
+    res.on('finish', boundFinish);
+    next();
   });
-  next();
 });
 
 // metrics
@@ -104,7 +115,7 @@ app.use((req, res, next) => {
 });
 
 const server = app.listen(port, () => {
-  console.log(`express-test-app running on port ${port}`);
+  logger.info(`express-test-app running on port ${port}`);
 });
 
 server.on('error', (e: any) => {

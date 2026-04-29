@@ -1,5 +1,6 @@
 import { LogEvent } from '../../modules';
 import { NormalisedConfig } from '../config';
+import { ContextProvider } from '../traces';
 import { IPipeline } from './pipeline';
 
 export type LogLevel = 'info' | 'error' | 'debug' | 'warn';
@@ -26,6 +27,7 @@ export class Logger implements ILogger {
   constructor(
     private config: NormalisedConfig,
     private pipeline: IPipeline,
+    private contextProvider?: ContextProvider,
   ) {
     this.serviceName = config.serviceName;
     this.threshold = LEVEL_PRIORITY[config.logs.level];
@@ -52,11 +54,18 @@ export class Logger implements ILogger {
     if (LEVEL_PRIORITY[level] < this.threshold) {
       return;
     }
+
+    const traceContext = this.config.logs.enrichWithTraceContext
+      ? this.contextProvider?.getTraceContext()
+      : undefined;
+
     this.pipeline.handle({
       level,
       message,
       serviceName: this.serviceName,
       context,
+      traceId: traceContext?.traceId,
+      spanId: traceContext?.spanId,
       timestamp: this.getTimestamp(),
     } as LogEvent);
   }

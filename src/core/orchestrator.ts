@@ -13,6 +13,7 @@ import { ILogger, Logger } from './logger';
 import { Module } from './config';
 import { NoopPipeline } from './logger/pipeline';
 import { IMetricsRegistry, NoopMetricsRegistry } from './metrics/registry';
+import { ITracer, NoopTracer } from './traces';
 
 class Corelens {
   private modules: Module[] = [];
@@ -22,23 +23,38 @@ class Corelens {
   // specific module wiring
   private logsModule: LogsModule;
   private metricsModule: MetricsModule;
+  private tracesModule: TracesModule;
 
   // public APIs
   public logger: ILogger;
   public metrics: IMetricsRegistry;
+  public tracer: ITracer;
   public httpRecorder: HttpMetricsRecorder;
 
   constructor(public config: NormalisedConfig) {
-    const logsModule = new LogsModule({ config });
+    // Traces
+    const tracesModule = new TracesModule({ config });
+    this.tracesModule = tracesModule;
+
+    const contextProvider = config.traces.enabled
+      ? tracesModule.getContextProvider()
+      : undefined;
+
+    if (config.traces.enabled) {
+      this.modules.push(tracesModule);
+    }
+    this.tracer = config.traces.enabled
+      ? tracesModule.getTracer()
+      : new NoopTracer();
+
+    // Logs
+    const logsModule = new LogsModule({ config }, contextProvider);
     this.logsModule = logsModule;
 
     if (config.logs.enabled) {
       this.modules.push(logsModule);
     }
-    this.logger = new Logger(
-      config,
-      config.logs.enabled ? logsModule.getPipeline() : new NoopPipeline(),
-    );
+    this.logger = logsModule.getLogger();
 
     // Metrics
     const metricsModule = new MetricsModule({ config });
@@ -51,14 +67,12 @@ class Corelens {
     this.metrics = config.metrics.enabled
       ? metricsModule.getRegistry()
       : new NoopMetricsRegistry();
+
     this.httpRecorder = new HttpMetricsRecorder(this.metrics, {
       enabled: config.metrics.http.enabled,
       buckets: config.metrics.http.buckets,
       ignoredRoutes: config.metrics.http.ignoredRoutes,
     });
-
-    // Traces
-    if (config.traces) this.modules.push(new TracesModule({ config }));
 
     // process signal
     if (config.lifecycle.handleProcessSignals) {
@@ -77,6 +91,7 @@ class Corelens {
         snapshot: this.metricsModule.getFullSnapshot(),
         labelCardinalitySnapshot: this.metricsModule.getCardinalitySnapshot(),
       },
+      traces: this.tracesModule.snapshot(),
     };
   }
 
@@ -155,6 +170,7 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
       format: cfg?.logs?.format ?? 'json',
       colorize: cfg?.logs?.colorize ?? false,
       level: cfg?.logs?.level ?? 'info',
+      enrichWithTraceContext: cfg?.logs?.enrichWithTraceContext ?? false,
     },
     metrics: {
       enabled: cfg?.metrics?.enabled ?? false,
@@ -172,7 +188,9 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
       },
       maxSeriesPerMetric: cfg?.metrics?.maxSeriesPerMetric ?? 1000,
     },
-    traces: cfg.traces ?? false,
+    traces: {
+      enabled: cfg.traces?.enabled ?? false,
+    },
     lifecycle: {
       handleProcessSignals: cfg?.lifecycle?.handleProcessSignals ?? false,
     },

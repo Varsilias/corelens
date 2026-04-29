@@ -1,16 +1,47 @@
 import { Module } from '../../core/config';
 import { ModuleContext } from '../../core/config';
+import {
+  ContextProvider,
+  TraceContextStore,
+  TraceIdGenerator,
+  Tracer,
+} from '../../core/traces';
+import { InMemorySpanProcessor } from '../../core/traces/processor';
 
 export class TracesModule implements Module {
-  constructor(private config: ModuleContext) {}
+  private contextStore: TraceContextStore;
+  private tracer: Tracer;
+  private generator: TraceIdGenerator;
+  private processor: InMemorySpanProcessor;
 
-  init(): void {
-    // console.log('TracesModule initialised');
+  constructor(private ctx: ModuleContext) {
+    const { config } = ctx;
+    this.contextStore = new TraceContextStore();
+    this.generator = new TraceIdGenerator();
+    this.processor = new InMemorySpanProcessor();
+    this.tracer = new Tracer(
+      this.contextStore,
+      this.generator,
+      this.processor,
+      { serviceName: config.serviceName },
+    );
   }
-  start(): void {
-    // console.log('TracesModule started');
+
+  getTracer() {
+    return this.tracer;
   }
-  async stop(): Promise<void> {
-    // console.log('TracesModule stopped');
+
+  getContextProvider(): ContextProvider {
+    return {
+      getTraceContext: () => this.tracer.getTraceContext(),
+    };
   }
+
+  snapshot() {
+    return this.processor.snapshot();
+  }
+
+  init(): void {}
+  start(): void {}
+  async stop(): Promise<void> {}
 }

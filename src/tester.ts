@@ -19,7 +19,9 @@ import { corelens } from './core/orchestrator';
 //       intervalMs: 10000,
 //     },
 //   },
-//   traces: true,
+//   traces: {
+//     enabled: true,
+//   },
 //   lifecycle: {
 //     handleProcessSignals: true,
 //   },
@@ -97,71 +99,94 @@ import { corelens } from './core/orchestrator';
 //   process.exitCode = 1;
 // });
 
-async function stressTestInternal() {
+// async function stressTestInternal() {
+//   const lens = corelens({
+//     serviceName: 'stress-test',
+//     metrics: { enabled: true },
+//   });
+
+//   const iterations = 1_000_000;
+//   const h = lens.metrics.histogram(
+//     'stress_duration',
+//     'Internal stress duration distribution',
+//     {
+//       buckets: [0.1, 0.5, 1, 2, 5],
+//     },
+//   );
+//   const c = lens.metrics.counter(
+//     'stress_counter',
+//     'Stress test interation counter',
+//   );
+
+//   console.log(
+//     `--- Starting Internal Stress: ${iterations.toLocaleString()} iterations ---`,
+//   );
+
+//   const startMemory = process.memoryUsage().heapUsed;
+//   const startTime = performance.now();
+
+//   // Test 1: Raw Observation (includes label serialization every time)
+//   for (let i = 0; i < iterations; i++) {
+//     h.observe(Math.random() * 6, { method: 'GET', status: '200' });
+//     if (i % (iterations / 4) === 0) c.inc(1);
+//   }
+
+//   const midTime = performance.now();
+//   const midMemory = process.memoryUsage().heapUsed;
+
+//   // Test 2: Pre-bound Observation (The "Hot Path" optimization)
+//   const boundH = h.labels({ method: 'POST', status: '201' });
+//   for (let i = 0; i < iterations; i++) {
+//     boundH.observe(Math.random() * 6);
+//   }
+
+//   const endTime = performance.now();
+//   const endMemory = process.memoryUsage().heapUsed;
+
+//   console.log('--- Results ---');
+//   console.log(
+//     `Raw Path: ${(midTime - startTime).toFixed(2)}ms (${(iterations / (midTime - startTime)).toFixed(2)} ops/ms)`,
+//   );
+//   console.log(
+//     `Bound Path: ${(endTime - midTime).toFixed(2)}ms (${(iterations / (endTime - midTime)).toFixed(2)} ops/ms)`,
+//   );
+//   console.log(
+//     `Memory Delta: ${((endMemory - startMemory) / 1024 / 1024).toFixed(2)}MB`,
+//   );
+
+//   // Verify Correctness
+//   const snapshot = lens.metrics.snapshot();
+//   console.log('--- Correctness Check ---');
+//   console.log(
+//     JSON.stringify(
+//       snapshot.entries.find((e) => e.name === 'stress_duration'),
+//       null,
+//       2,
+//     ),
+//   );
+// }
+
+// stressTestInternal();
+
+async function traceTest() {
   const lens = corelens({
-    serviceName: 'stress-test',
-    metrics: { enabled: true },
+    serviceName: 'trace-test',
+    logs: { enabled: true, enrichWithTraceContext: true },
+    traces: { enabled: true },
   });
 
-  const iterations = 1_000_000;
-  const h = lens.metrics.histogram(
-    'stress_duration',
-    'Internal stress duration distribution',
-    {
-      buckets: [0.1, 0.5, 1, 2, 5],
-    },
-  );
-  const c = lens.metrics.counter(
-    'stress_counter',
-    'Stress test interation counter',
-  );
+  const logger = lens.logger;
+  const tracer = lens.tracer;
 
-  console.log(
-    `--- Starting Internal Stress: ${iterations.toLocaleString()} iterations ---`,
-  );
+  const iterations = 10;
 
-  const startMemory = process.memoryUsage().heapUsed;
-  const startTime = performance.now();
-
-  // Test 1: Raw Observation (includes label serialization every time)
   for (let i = 0; i < iterations; i++) {
-    h.observe(Math.random() * 6, { method: 'GET', status: '200' });
-    if (i % (iterations / 4) === 0) c.inc(1);
+    tracer.withSpan('root', () => {
+      logger.info('inside trace', { index: i });
+    });
   }
 
-  const midTime = performance.now();
-  const midMemory = process.memoryUsage().heapUsed;
-
-  // Test 2: Pre-bound Observation (The "Hot Path" optimization)
-  const boundH = h.labels({ method: 'POST', status: '201' });
-  for (let i = 0; i < iterations; i++) {
-    boundH.observe(Math.random() * 6);
-  }
-
-  const endTime = performance.now();
-  const endMemory = process.memoryUsage().heapUsed;
-
-  console.log('--- Results ---');
-  console.log(
-    `Raw Path: ${(midTime - startTime).toFixed(2)}ms (${(iterations / (midTime - startTime)).toFixed(2)} ops/ms)`,
-  );
-  console.log(
-    `Bound Path: ${(endTime - midTime).toFixed(2)}ms (${(iterations / (endTime - midTime)).toFixed(2)} ops/ms)`,
-  );
-  console.log(
-    `Memory Delta: ${((endMemory - startMemory) / 1024 / 1024).toFixed(2)}MB`,
-  );
-
-  // Verify Correctness
-  const snapshot = lens.metrics.snapshot();
-  console.log('--- Correctness Check ---');
-  console.log(
-    JSON.stringify(
-      snapshot.entries.find((e) => e.name === 'stress_duration'),
-      null,
-      2,
-    ),
-  );
+  console.log(lens.getStats());
 }
 
-stressTestInternal();
+traceTest();

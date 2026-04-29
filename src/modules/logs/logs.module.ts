@@ -1,7 +1,9 @@
+import { ILogger, Logger } from '../../core';
 import { Module } from '../../core/config';
 import { ModuleContext } from '../../core/config';
-import { LogsPipeline } from '../../core/logger/pipeline';
+import { LogsPipeline, NoopPipeline } from '../../core/logger/pipeline';
 import { CorelensWriter } from '../../core/logger/writer';
+import { ContextProvider } from '../../core/traces';
 
 export type LogEvent = {
   level: string;
@@ -9,12 +11,18 @@ export type LogEvent = {
   serviceName: string;
   timestamp: number;
   context?: Record<string, any>;
+  traceId?: string;
+  spanId?: string;
 };
 
 export class LogsModule implements Module {
   private pipeline: LogsPipeline;
+  private logger: ILogger;
 
-  constructor(private ctx: ModuleContext) {
+  constructor(
+    private ctx: ModuleContext,
+    private readonly contextProvider?: ContextProvider,
+  ) {
     const { config } = this.ctx;
 
     const format =
@@ -29,10 +37,16 @@ export class LogsModule implements Module {
       fullQueuePolicy: config.logs.fullQueuePolicy,
       format,
     });
+
+    this.logger = new Logger(
+      config,
+      config.logs.enabled ? this.pipeline : new NoopPipeline(),
+      this.contextProvider,
+    );
   }
 
-  getPipeline(): LogsPipeline {
-    return this.pipeline;
+  getLogger(): ILogger {
+    return this.logger;
   }
 
   getPipelineStats() {

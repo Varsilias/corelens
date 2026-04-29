@@ -19,6 +19,7 @@ export type CorelensLogConfig = {
   format?: 'json' | 'pretty';
   colorize?: boolean;
   level?: LogLevel;
+  enrichWithTraceContext?: boolean;
 };
 
 export type CorelensMetricsConfig = {
@@ -35,11 +36,15 @@ export type CorelensMetricsConfig = {
   maxSeriesPerMetric?: number;
 };
 
+export type CorelensTracesConfig = {
+  enabled: boolean;
+};
+
 export type CorelensConfig = {
   serviceName: string;
   logs?: CorelensLogConfig;
   metrics?: CorelensMetricsConfig;
-  traces?: boolean;
+  traces?: CorelensTracesConfig;
   lifecycle?: {
     handleProcessSignals?: boolean;
   };
@@ -63,6 +68,7 @@ export type NormalisedLogConfig = {
   format: 'json' | 'pretty';
   colorize: boolean;
   level: LogLevel;
+  enrichWithTraceContext: boolean;
 };
 
 export type NormalisedMetricsConfig = {
@@ -79,11 +85,15 @@ export type NormalisedMetricsConfig = {
   maxSeriesPerMetric: number;
 };
 
+export type NormalisedTracesConfig = {
+  enabled: boolean;
+};
+
 export type NormalisedConfig = {
   serviceName: string;
   logs: NormalisedLogConfig;
   metrics: NormalisedMetricsConfig;
-  traces: boolean;
+  traces: NormalisedTracesConfig;
   lifecycle: {
     handleProcessSignals: boolean;
   };

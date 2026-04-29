@@ -19,6 +19,7 @@ const lens = corelens({
     },
     format: 'json',
     colorize: true,
+    enrichWithTraceContext: true,
   },
   metrics: {
     enabled: true,
@@ -26,10 +27,15 @@ const lens = corelens({
       enabled: true,
     },
   },
+  traces: {
+    enabled: true,
+  },
 });
 
 const logger = lens.logger;
 const metrics = lens.metrics;
+const tracer = lens.tracer;
+
 const exporter = new PrometheusTextExporter();
 
 const adapter = new FastifyMetricsAdapter();
@@ -48,12 +54,14 @@ const httpDur = metrics.histogram(
 );
 
 fastify.addHook('onResponse', async (request, reply) => {
-  // Log request
-  logger.info('Request processed', {
-    method: request.method,
-    path: request.url,
-    status: reply.statusCode,
-    duration: `${reply.elapsedTime.toFixed(2)}ms`,
+  await tracer.withSpan('root', async () => {
+    // Log request
+    logger.info('Request processed', {
+      method: request.method,
+      path: request.url,
+      status: reply.statusCode,
+      duration: `${reply.elapsedTime.toFixed(2)}ms`,
+    });
   });
 });
 
@@ -66,7 +74,7 @@ fastify.get('/api/data', async () => {
   return { data: 'Hello from Fastify' };
 });
 
-fastify.get('/api/work/:id', async (requesr, reply) => {
+fastify.get('/api/work/:id', async (request, reply) => {
   requestTotal.inc();
   const start = performance.now();
 
@@ -81,9 +89,15 @@ fastify.get('/api/work/:id', async (requesr, reply) => {
 });
 
 fastify.get('/api/error', async (request, reply) => {
-  requestTotal.inc();
-  logger.error('Critical API Failure', { code: 'ERR_500' });
-  reply.status(500).send({ error: 'Internal Server Error' });
+  return tracer.withSpan('/api/error', async () => {
+    requestTotal.inc();
+    try {
+      throw new Error('Critical API Failure');
+    } catch (error) {
+      logger.error('Critical API Failure', { code: 'ERR_500' });
+      reply.status(500).send({ error: 'Internal Server Error' });
+    }
+  });
 });
 
 fastify.get('/metrics', async (request, reply) => {
