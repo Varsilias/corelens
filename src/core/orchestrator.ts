@@ -14,7 +14,7 @@ import { Module } from './config';
 import { NoopPipeline } from './logger/pipeline';
 import { IMetricsRegistry, NoopMetricsRegistry } from './metrics/registry';
 import { ITracer, NoopTracer } from './traces';
-import { HttpTracingRecorder } from '../adapter';
+import { HttpTracingRecorder } from '../adapter/http-tracing-recorder';
 
 class Corelens {
   private modules: Module[] = [];
