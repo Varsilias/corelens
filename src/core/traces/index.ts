@@ -21,6 +21,7 @@ export interface ITracer {
   getActiveSpan(): ISpan | undefined;
   runInContext<R>(span: ISpan, fn: () => R): R;
   bindToContext<T extends (...args: any[]) => any>(fn: T): T;
+  getDebugId(): string;
 }
 
 export class Tracer implements ContextProvider, ITracer {
@@ -44,6 +45,10 @@ export class Tracer implements ContextProvider, ITracer {
       parentSpanId: span.getParentSpanId(),
       sampled: span.isSampled(),
     };
+  }
+
+  getDebugId() {
+    return this.store.id;
   }
 
   startSpan(name: string): ISpan {
@@ -97,7 +102,7 @@ export class Tracer implements ContextProvider, ITracer {
   }
 
   bindToContext<T extends (...args: any[]) => any>(fn: T): T {
-    return AsyncResource.bind(fn);
+    return this.store.bind(fn);
   }
 
   getActiveSpan(): ISpan | undefined {
@@ -126,9 +131,13 @@ export class NoopTracer implements ITracer {
   bindToContext<T extends (...args: any[]) => any>(fn: T): T {
     return AsyncResource.bind(fn);
   }
+  getDebugId(): string {
+    return '';
+  }
 }
 
 export class TraceContextStore {
+  public readonly id = Math.random().toString(16).slice(2);
   private storage = new AsyncLocalStorage<ISpan>();
 
   run<R>(span: ISpan, fn: () => R): R {
@@ -136,6 +145,15 @@ export class TraceContextStore {
   }
   getActiveSpan(): ISpan | undefined {
     return this.storage.getStore();
+  }
+
+  bind<T extends (...args: any[]) => any>(fn: T): T {
+    const span = this.getActiveSpan();
+    if (!span) return fn;
+
+    return ((...args: Parameters<T>) => {
+      return this.run(span, () => fn(...args));
+    }) as T;
   }
 }
 

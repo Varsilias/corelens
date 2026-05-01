@@ -1,15 +1,13 @@
-import { ILogger, Logger } from '../../core';
 import { Module } from '../../core/config';
 import { ModuleContext } from '../../core/config';
-import { LogsPipeline, NoopPipeline } from '../../core/logger/pipeline';
+import { LogsPipeline } from '../../core/logger/pipeline';
 import { CorelensWriter } from '../../core/logger/writer';
-import { ContextProvider } from '../../core/traces';
 
 export type LogEvent = {
   level: string;
   message: string;
   serviceName: string;
-  timestamp: number;
+  timestamp: number | string;
   context?: Record<string, any>;
   traceId?: string;
   spanId?: string;
@@ -17,12 +15,8 @@ export type LogEvent = {
 
 export class LogsModule implements Module {
   private pipeline: LogsPipeline;
-  private logger: ILogger;
 
-  constructor(
-    private ctx: ModuleContext,
-    private readonly contextProvider?: ContextProvider,
-  ) {
+  constructor(private ctx: ModuleContext) {
     const { config } = this.ctx;
 
     const format =
@@ -37,23 +31,16 @@ export class LogsModule implements Module {
       fullQueuePolicy: config.logs.fullQueuePolicy,
       format,
     });
-
-    this.logger = new Logger(
-      config,
-      config.logs.enabled ? this.pipeline : new NoopPipeline(),
-      this.contextProvider,
-    );
   }
 
-  getLogger(): ILogger {
-    return this.logger;
+  getPipeline() {
+    return this.pipeline;
   }
 
   getPipelineStats() {
     return this.pipeline.getStats();
   }
 
-  //
   init(): void {}
   start(): void {}
   async stop(): Promise<void> {

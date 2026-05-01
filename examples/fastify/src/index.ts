@@ -75,17 +75,19 @@ fastify.get('/api/data', async () => {
 });
 
 fastify.get('/api/work/:id', async (request, reply) => {
-  requestTotal.inc();
-  const start = performance.now();
+  tracer.withSpan(`${request.method} ${request.url}`, async () => {
+    requestTotal.inc();
+    const start = performance.now();
 
-  // Simulate varying work
-  const delay = Math.random() * 100;
-  await new Promise((r) => setTimeout(r, delay));
+    // Simulate varying work
+    const delay = Math.random() * 100;
+    await new Promise((r) => setTimeout(r, delay));
 
-  const duration = (performance.now() - start) / 1000;
-  httpDur.observe(duration, { method: 'GET', path: '/work' });
-
-  return reply.send('done');
+    const duration = (performance.now() - start) / 1000;
+    httpDur.observe(duration, { method: 'GET', path: '/work' });
+    logger.info('work-done');
+    return reply.send('done');
+  });
 });
 
 fastify.get('/api/error', async (request, reply) => {

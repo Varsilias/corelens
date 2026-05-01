@@ -127,3 +127,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+package-lock.json
+examples/express/package-lock.json
+examples/fastify/package-lock.json
+examples/hono/package-lock.json

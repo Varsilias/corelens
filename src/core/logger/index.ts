@@ -51,6 +51,12 @@ export class Logger implements ILogger {
   }
 
   private log(level: LogLevel, message: string, context?: Record<string, any>) {
+    console.log({
+      enrich: this.config.logs.enrichWithTraceContext,
+      hasProvider: !!this.contextProvider,
+      traceContext: this.contextProvider?.getTraceContext(),
+    });
+
     if (LEVEL_PRIORITY[level] < this.threshold) {
       return;
     }
@@ -58,6 +64,8 @@ export class Logger implements ILogger {
     const traceContext = this.config.logs.enrichWithTraceContext
       ? this.contextProvider?.getTraceContext()
       : undefined;
+
+    console.log('logger traceContext', traceContext);
 
     this.pipeline.handle({
       level,

@@ -14,6 +14,7 @@ const lens = corelens({
     enabled: true,
     maxQueueBytes: 1024 * 1024, // 1MB for testing
     fullQueuePolicy: 'drop-oldest',
+    enrichWithTraceContext: true,
   },
   metrics: {
     enabled: true,
@@ -50,6 +51,7 @@ app.use((req, res, next) => {
   tracer.runInContext(span, () => {
     const boundFinish = tracer.bindToContext(() => {
       const duration = Date.now() - start;
+      console.log('active before log', tracer.getTraceContext());
       logger.info(`Request processed`, {
         method: req.method,
         path: req.path,
@@ -80,17 +82,22 @@ app.get('/api/data', (req, res) => {
 });
 
 app.get('/api/work/:id', async (req, res) => {
-  requestTotal.inc();
-  const start = performance.now();
+  tracer.withSpan(`${req.method} ${req.url}`, async () => {
+    requestTotal.inc();
+    const start = performance.now();
 
-  // Simulate varying work
-  const delay = Math.random() * 100;
-  await new Promise((r) => setTimeout(r, delay));
+    // Simulate varying work
+    const delay = Math.random() * 100;
+    await new Promise((r) => setTimeout(r, delay));
 
-  const duration = (performance.now() - start) / 1000;
-  httpDur.observe(duration, { method: 'GET', path: '/work' });
+    const duration = (performance.now() - start) / 1000;
+    httpDur.observe(duration, { method: 'GET', path: '/work' });
+    console.log('inside router handler', tracer.getTraceContext());
 
-  return res.send('done');
+    logger.info('okay-done');
+
+    return res.send('done');
+  });
 });
 
 app.get('/api/error', (req, res) => {

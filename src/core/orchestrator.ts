@@ -36,25 +36,27 @@ class Corelens {
     const tracesModule = new TracesModule({ config });
     this.tracesModule = tracesModule;
 
-    const contextProvider = config.traces.enabled
-      ? tracesModule.getContextProvider()
-      : undefined;
+    const tracer = config.traces.enabled
+      ? tracesModule.getTracer()
+      : new NoopTracer();
 
     if (config.traces.enabled) {
       this.modules.push(tracesModule);
     }
-    this.tracer = config.traces.enabled
-      ? tracesModule.getTracer()
-      : new NoopTracer();
+    this.tracer = tracer;
 
     // Logs
-    const logsModule = new LogsModule({ config }, contextProvider);
+    const logsModule = new LogsModule({ config });
     this.logsModule = logsModule;
 
     if (config.logs.enabled) {
       this.modules.push(logsModule);
     }
-    this.logger = logsModule.getLogger();
+    this.logger = new Logger(
+      config,
+      config.logs.enabled ? logsModule.getPipeline() : new NoopPipeline(),
+      tracer,
+    );
 
     // Metrics
     const metricsModule = new MetricsModule({ config });

@@ -1,11 +1,6 @@
 import { Module } from '../../core/config';
 import { ModuleContext } from '../../core/config';
-import {
-  ContextProvider,
-  TraceContextStore,
-  TraceIdGenerator,
-  Tracer,
-} from '../../core/traces';
+import { TraceContextStore, TraceIdGenerator, Tracer } from '../../core/traces';
 import { InMemorySpanProcessor } from '../../core/traces/processor';
 
 export class TracesModule implements Module {
@@ -29,12 +24,6 @@ export class TracesModule implements Module {
 
   getTracer() {
     return this.tracer;
-  }
-
-  getContextProvider(): ContextProvider {
-    return {
-      getTraceContext: () => this.tracer.getTraceContext(),
-    };
   }
 
   snapshot() {

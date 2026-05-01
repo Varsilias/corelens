@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch src --watch ../../src --ext ts --exec ts-node src/index.ts",
+    "dev": "nodemon --watch src --watch ../../src --ext ts --exec ts-node --require tsconfig-paths/register src/index.ts",
     "start": "nodemon --watch src --ext ts --exec 'ts-node' src/index.ts",
     "bench": "autocannon -c 100 -d 20 http://localhost:3100/api/work/12"
   },
@@ -26,6 +26,7 @@
     "autocannon": "^8.0.0",
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.3"
   }
 }
