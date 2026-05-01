@@ -14,6 +14,7 @@ import { Module } from './config';
 import { NoopPipeline } from './logger/pipeline';
 import { IMetricsRegistry, NoopMetricsRegistry } from './metrics/registry';
 import { ITracer, NoopTracer } from './traces';
+import { HttpTracingRecorder } from '../adapter';
 
 class Corelens {
   private modules: Module[] = [];
@@ -29,7 +30,8 @@ class Corelens {
   public logger: ILogger;
   public metrics: IMetricsRegistry;
   public tracer: ITracer;
-  public httpRecorder: HttpMetricsRecorder;
+  public httpMetricsRecorder: HttpMetricsRecorder;
+  public httpTracingRecorder: HttpTracingRecorder;
 
   constructor(public config: NormalisedConfig) {
     // Traces
@@ -70,10 +72,15 @@ class Corelens {
       ? metricsModule.getRegistry()
       : new NoopMetricsRegistry();
 
-    this.httpRecorder = new HttpMetricsRecorder(this.metrics, {
+    this.httpMetricsRecorder = new HttpMetricsRecorder(this.metrics, {
       enabled: config.metrics.http.enabled,
       buckets: config.metrics.http.buckets,
       ignoredRoutes: config.metrics.http.ignoredRoutes,
+    });
+
+    this.httpTracingRecorder = new HttpTracingRecorder(this.tracer, {
+      enabled: config.traces.http.enabled,
+      ignoredRoutes: config.traces.http.ignoredRoutes,
     });
 
     // process signal
@@ -192,6 +199,14 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
     },
     traces: {
       enabled: cfg.traces?.enabled ?? false,
+      samplingRate: cfg?.traces?.samplingRate ?? 100,
+      http: {
+        enabled: cfg?.traces?.http?.enabled ?? false,
+        ignoredRoutes: cfg?.traces?.http?.ignoredRoutes ?? [
+          '/metrics',
+          '/health',
+        ],
+      },
     },
     lifecycle: {
       handleProcessSignals: cfg?.lifecycle?.handleProcessSignals ?? false,

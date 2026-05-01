@@ -1,6 +1,6 @@
-import { Span, TraceSnapshot } from './span';
+import { Span, SpanProcessor, TraceSnapshot } from './span';
 
-export class InMemorySpanProcessor {
+export class InMemorySpanProcessor implements SpanProcessor {
   private container: TraceSnapshot[] = [];
 
   onEnd(span: Span) {

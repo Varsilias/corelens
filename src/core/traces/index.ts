@@ -1,6 +1,6 @@
 import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { randomBytes } from 'node:crypto';
-import { ISpan, NoopSpan, Span } from './span';
+import { ISpan, NoopSpan, Span, StartSpanOptions } from './span';
 import { InMemorySpanProcessor } from './processor';
 
 export type TraceContext = {
@@ -17,11 +17,16 @@ export type ContextProvider = {
 export interface ITracer {
   getTraceContext(): TraceContext | undefined;
   startSpan(name: string): ISpan;
+  startSpanWithOptions(options: StartSpanOptions): ISpan;
   withSpan<R>(name: string, fn: (span: ISpan) => R): R;
   getActiveSpan(): ISpan | undefined;
   runInContext<R>(span: ISpan, fn: () => R): R;
   bindToContext<T extends (...args: any[]) => any>(fn: T): T;
   getDebugId(): string;
+  shouldSample(
+    parentContext: TraceContext | undefined,
+    samplingRate: number,
+  ): boolean;
 }
 
 export class Tracer implements ContextProvider, ITracer {
@@ -69,6 +74,25 @@ export class Tracer implements ContextProvider, ITracer {
     return span;
   }
 
+  startSpanWithOptions(options: StartSpanOptions): ISpan {
+    const activeContext = this.getTraceContext();
+
+    const parentContext = options.parentContext ?? activeContext;
+    const traceId = parentContext?.traceId ?? this.generator.generateTraceId();
+    const spanId = this.generator.generateSpanId();
+
+    return new Span(
+      options.name,
+      traceId,
+      spanId,
+      parentContext?.spanId ?? null,
+      (s) => this.processor.onEnd(s),
+      options.kind,
+      options.attributes,
+      parentContext?.sampled,
+    );
+  }
+
   withSpan<R>(name: string, fn: (span: ISpan) => R): R {
     const span = this.startSpan(name);
     return this.store.run(span, () => {
@@ -108,6 +132,17 @@ export class Tracer implements ContextProvider, ITracer {
   getActiveSpan(): ISpan | undefined {
     return this.store.getActiveSpan();
   }
+
+  shouldSample(
+    parentContext: TraceContext | undefined,
+    samplingRate: number,
+  ): boolean {
+    if (parentContext) {
+      return parentContext.sampled;
+    }
+
+    return Math.random() < samplingRate;
+  }
 }
 
 export class NoopTracer implements ITracer {
@@ -133,6 +168,16 @@ export class NoopTracer implements ITracer {
   }
   getDebugId(): string {
     return '';
+  }
+  startSpanWithOptions(options: StartSpanOptions): ISpan {
+    return new NoopSpan(options.name);
+  }
+
+  shouldSample(
+    parentContext: TraceContext | undefined,
+    samplingRate: number,
+  ): boolean {
+    return false;
   }
 }
 

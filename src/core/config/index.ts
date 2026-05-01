@@ -38,6 +38,11 @@ export type CorelensMetricsConfig = {
 
 export type CorelensTracesConfig = {
   enabled: boolean;
+  samplingRate?: number; // 1-100
+  http?: {
+    enabled?: boolean;
+    ignoredRoutes?: string[];
+  };
 };
 
 export type CorelensConfig = {
@@ -87,6 +92,11 @@ export type NormalisedMetricsConfig = {
 
 export type NormalisedTracesConfig = {
   enabled: boolean;
+  samplingRate: number;
+  http: {
+    enabled: boolean;
+    ignoredRoutes: string[];
+  };
 };
 
 export type NormalisedConfig = {

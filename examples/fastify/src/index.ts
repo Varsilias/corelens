@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import {
   corelens,
   FastifyMetricsAdapter,
+  FastifyTracingsAdapter,
   PrometheusTextExporter,
 } from '@varsilias/corelens';
 
@@ -29,6 +30,9 @@ const lens = corelens({
   },
   traces: {
     enabled: true,
+    http: {
+      enabled: true,
+    },
   },
 });
 
@@ -39,7 +43,9 @@ const tracer = lens.tracer;
 const exporter = new PrometheusTextExporter();
 
 const adapter = new FastifyMetricsAdapter();
-adapter.register(fastify, lens.httpRecorder);
+adapter.register(fastify, lens.httpMetricsRecorder);
+const tracingAdapter = new FastifyTracingsAdapter();
+tracingAdapter.register(fastify, lens.httpTracingRecorder);
 
 const requestTotal = metrics.counter(
   'example_http_requests_total',
@@ -53,18 +59,6 @@ const httpDur = metrics.histogram(
   },
 );
 
-fastify.addHook('onResponse', async (request, reply) => {
-  await tracer.withSpan('root', async () => {
-    // Log request
-    logger.info('Request processed', {
-      method: request.method,
-      path: request.url,
-      status: reply.statusCode,
-      duration: `${reply.elapsedTime.toFixed(2)}ms`,
-    });
-  });
-});
-
 fastify.get('/', async () => {
   return 'Corelens Fastify Test Server is running!';
 });
@@ -75,19 +69,30 @@ fastify.get('/api/data', async () => {
 });
 
 fastify.get('/api/work/:id', async (request, reply) => {
-  tracer.withSpan(`${request.method} ${request.url}`, async () => {
-    requestTotal.inc();
-    const start = performance.now();
+  // tracer.withSpan(`${request.method} ${request.url}`, async () => {
+  //   requestTotal.inc();
+  //   const start = performance.now();
 
-    // Simulate varying work
-    const delay = Math.random() * 100;
-    await new Promise((r) => setTimeout(r, delay));
+  //   // Simulate varying work
+  //   const delay = Math.random() * 100;
+  //   await new Promise((r) => setTimeout(r, delay));
 
-    const duration = (performance.now() - start) / 1000;
-    httpDur.observe(duration, { method: 'GET', path: '/work' });
-    logger.info('work-done');
-    return reply.send('done');
-  });
+  //   const duration = (performance.now() - start) / 1000;
+  //   httpDur.observe(duration, { method: 'GET', path: '/work' });
+  //   logger.info('work-done');
+  //   return reply.send('done');
+  // });
+  requestTotal.inc();
+  const start = performance.now();
+
+  // Simulate varying work
+  const delay = Math.random() * 100;
+  await new Promise((r) => setTimeout(r, delay));
+
+  const duration = (performance.now() - start) / 1000;
+  httpDur.observe(duration, { method: 'GET', path: '/work' });
+  logger.info('work-done');
+  return reply.send('done');
 });
 
 fastify.get('/api/error', async (request, reply) => {

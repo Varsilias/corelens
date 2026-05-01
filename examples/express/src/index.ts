@@ -3,6 +3,7 @@ import {
   corelens,
   PrometheusTextExporter,
   ExpressMetricsAdapter,
+  ExpressTracingAdapter,
 } from '@varsilias/corelens';
 
 const app = express();
@@ -24,6 +25,9 @@ const lens = corelens({
   },
   traces: {
     enabled: true,
+    http: {
+      enabled: true,
+    },
   },
 });
 
@@ -31,8 +35,11 @@ const logger = lens.logger;
 const metrics = lens.metrics;
 const tracer = lens.tracer;
 
-const adapter = new ExpressMetricsAdapter();
-adapter.register(app, lens.httpRecorder);
+// const adapter = new ExpressMetricsAdapter();
+// adapter.register(app, lens.httpMetricsRecorder);
+
+// const tracingAdapter = new ExpressTracingAdapter();
+// tracingAdapter.register(app, lens.httpTracingRecorder);
 
 const httpDur = metrics.histogram(
   'example_http_request_duration_seconds',
@@ -45,24 +52,15 @@ const httpDur = metrics.histogram(
 const exporter = new PrometheusTextExporter();
 
 app.use((req, res, next) => {
-  const span = tracer.startSpan(`${req.method} ${req.url}`);
   const start = Date.now();
 
-  tracer.runInContext(span, () => {
-    const boundFinish = tracer.bindToContext(() => {
-      const duration = Date.now() - start;
-      console.log('active before log', tracer.getTraceContext());
-      logger.info(`Request processed`, {
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        duration: `${duration}ms`,
-      });
-
-      span.end();
-    });
-    res.on('finish', boundFinish);
-    next();
+  const duration = Date.now() - start;
+  console.log('active before log', tracer.getTraceContext());
+  logger.info(`Request processed`, {
+    method: req.method,
+    path: req.path,
+    status: res.statusCode,
+    duration: `${duration}ms`,
   });
 });
 
@@ -82,22 +80,20 @@ app.get('/api/data', (req, res) => {
 });
 
 app.get('/api/work/:id', async (req, res) => {
-  tracer.withSpan(`${req.method} ${req.url}`, async () => {
-    requestTotal.inc();
-    const start = performance.now();
+  requestTotal.inc();
+  const start = performance.now();
 
-    // Simulate varying work
-    const delay = Math.random() * 100;
-    await new Promise((r) => setTimeout(r, delay));
+  // Simulate varying work
+  const delay = Math.random() * 100;
+  await new Promise((r) => setTimeout(r, delay));
 
-    const duration = (performance.now() - start) / 1000;
-    httpDur.observe(duration, { method: 'GET', path: '/work' });
-    console.log('inside router handler', tracer.getTraceContext());
+  const duration = (performance.now() - start) / 1000;
+  httpDur.observe(duration, { method: 'GET', path: '/work' });
+  console.log('inside router handler', tracer.getTraceContext());
 
-    logger.info('okay-done');
+  logger.info('okay-done');
 
-    return res.send('done');
-  });
+  return res.send('done');
 });
 
 app.get('/api/error', (req, res) => {

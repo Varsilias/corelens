@@ -11,28 +11,32 @@ export class W3CTraceContextPropagator {
    * Parses the 'traceparent' header.
    * Format: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
    */
-  parse(traceparent: string): RemoteTraceContext | null {
-    if (!traceparent) return null;
+  static parseTraceParent(value: unknown): TraceContext | undefined {
+    if (!value) return undefined;
 
-    const parts = traceparent.split('-');
+    const header = Array.isArray(value) ? value[0] : value;
 
-    // W3C spec: version-traceId-spanId-flags
-    // Version must be '00', total 4 parts.
-    if (parts.length !== 4 || parts[0] !== '00') {
-      return null;
-    }
+    if (typeof header !== 'string') return undefined;
 
-    const [version, traceId, parentSpanId, flags] = parts;
+    const parts = header.trim().split('-');
 
-    // Validate lengths
-    if (traceId.length !== 32 || parentSpanId.length !== 16) {
-      return null;
-    }
+    if (parts.length !== 4) return undefined;
+
+    const [version, traceId, spanId, flags] = parts;
+
+    if (version !== '00') return undefined;
+    if (!/^[0-9a-f]{32}$/.test(traceId)) return undefined;
+    if (!/^[0-9a-f]{16}$/.test(spanId)) return undefined;
+    if (!/^[0-9a-f]{2}$/.test(flags)) return undefined;
+
+    if (traceId === '00000000000000000000000000000000') return undefined;
+    if (spanId === '0000000000000000') return undefined;
 
     return {
       traceId,
-      parentSpanId: parentSpanId,
-      sampled: flags === '01',
+      spanId,
+      sampled: (parseInt(flags, 16) & 1) === 1,
+      parentSpanId: null,
     };
   }
   /**

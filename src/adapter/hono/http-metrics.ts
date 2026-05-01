@@ -9,6 +9,9 @@ import {
 export class HonoMetricsAdapter implements HttpMetricsAdapter<Hono> {
   register(app: Hono, recorder: HttpMetricsRecorder): void {
     if (!recorder.isEnabled) {
+      console.warn(
+        '[Corelens] Hono http metrics adapter registered but HTTP metric collection is disabled.',
+      );
       return;
     }
 

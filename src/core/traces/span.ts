@@ -1,3 +1,5 @@
+import { TraceContext } from '.';
+
 export type SpanStatus = 'unset' | 'ok' | 'error';
 
 type SpanAttribute = Record<string, string>;
@@ -6,6 +8,26 @@ type SpanEvent = {
   timestamp: number;
   attributes: Record<string, any>;
 };
+
+export enum SpanKind {
+  INTERNAL = 'internal',
+  SERVER = 'server',
+  CLIENT = 'client',
+}
+
+export type StartSpanOptions = {
+  name: string;
+  kind?: SpanKind;
+  attributes?: SpanAttribute;
+  parentContext?: TraceContext;
+};
+
+export interface SpanProcessor {
+  onStart?(span: Span): void;
+  onEnd(span: Span): void;
+  shutdown?(): Promise<void>;
+  forceFlush?(): Promise<void>;
+}
 
 export type TraceSnapshot = {
   name: string;
@@ -34,6 +56,7 @@ export interface ISpan {
   end(): void;
   addEvent(name: string, attributes: Record<string, any>): void;
   toJSON(): TraceSnapshot;
+  setStatus(status: SpanStatus): void;
 }
 
 export class Span implements ISpan {
@@ -44,7 +67,6 @@ export class Span implements ISpan {
   private endTimeEpochNs: number = 0;
   private status: SpanStatus = 'unset';
 
-  private readonly attributes: SpanAttribute = {};
   private readonly events: SpanEvent[] = [];
 
   constructor(
@@ -53,6 +75,10 @@ export class Span implements ISpan {
     public readonly spanId: string,
     public readonly parentSpanId: string | null,
     private readonly onEnd: (span: Span) => void,
+
+    // optional values
+    public readonly kind: SpanKind = SpanKind.SERVER,
+    private readonly attributes: SpanAttribute = {},
     public readonly sampled: boolean = true,
   ) {
     this.startTime = performance.now();
@@ -97,7 +123,7 @@ export class Span implements ISpan {
       'exception.type': isErrorInstance ? error.constructor.name : typeof error,
       'exception.message': isErrorInstance ? error.message : String(error),
       'exception.stacktrace': isErrorInstance ? error.stack : '',
-      'exception.escaped': true, // Indicates the error was handled/recorded
+      'exception.escaped': false, // Indicates whether the error was handled/recorded
     };
 
     this.addEvent('exception', exceptionEvent);
@@ -107,6 +133,7 @@ export class Span implements ISpan {
     if (this.endTime > 0 || this.endTimeEpochNs > 0) return;
     this.endTime = performance.now();
     this.endTimeEpochNs = Date.now();
+    this.status = 'ok';
 
     // Notify the processor that we are done
     this.onEnd(this);
@@ -166,6 +193,8 @@ export class NoopSpan implements ISpan {
   isSampled(): boolean {
     return false;
   }
+
+  setStatus(status: SpanStatus): void {}
 
   toJSON(): TraceSnapshot {
     return {

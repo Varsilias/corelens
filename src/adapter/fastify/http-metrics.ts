@@ -7,6 +7,9 @@ import {
 export class FastifyMetricsAdapter implements HttpMetricsAdapter<FastifyInstance> {
   register(app: FastifyInstance, recorder: HttpMetricsRecorder): void {
     if (!recorder.isEnabled) {
+      console.warn(
+        '[Corelens] Fastify http metrics adapter registered but HTTP metric collection is disabled.',
+      );
       return;
     }
 
