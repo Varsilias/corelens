@@ -14,7 +14,7 @@ export class ExpressTracingAdapter implements HttpTracingAdapter<Express> {
       return;
     }
 
-    app.use(async (req, res, next) => {
+    app.use((req, res, next) => {
       try {
         const initialRoute = req?.path || 'unmatched_route';
 
@@ -27,20 +27,20 @@ export class ExpressTracingAdapter implements HttpTracingAdapter<Express> {
           traceparent: req.headers['traceparent'] as string,
         });
 
-        recorder.runWithSpan(span, () => {
-          res.on('finish', () => {
-            try {
-              const finalRoute = req.route?.path || initialRoute;
+        recorder.enterWithSpan(span);
 
-              span?.setAttribute('http.route', finalRoute);
-              recorder.end(span, { status: res.statusCode });
-            } catch (err) {
-              console.warn('[Corelens] Failed to end trace span:', err);
-            }
-          });
+        res.on('finish', () => {
+          try {
+            const finalRoute = req.route?.path || initialRoute;
 
-          next();
+            span?.setAttribute('http.route', finalRoute);
+            recorder.end(span, { status: res.statusCode });
+          } catch (err) {
+            console.warn('[Corelens] Failed to end trace span:', err);
+          }
         });
+
+        next();
       } catch (err) {
         console.warn('[Corelens] Failed to start trace span:', err);
         next();

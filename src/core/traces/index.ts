@@ -22,7 +22,7 @@ export interface ITracer {
   getActiveSpan(): ISpan | undefined;
   runInContext<R>(span: ISpan, fn: () => R): R;
   bindToContext<T extends (...args: any[]) => any>(fn: T): T;
-  getDebugId(): string;
+  enterWithSpan(span: ISpan): void;
   shouldSample(
     parentContext: TraceContext | undefined,
     samplingRate: number,
@@ -50,10 +50,6 @@ export class Tracer implements ContextProvider, ITracer {
       parentSpanId: span.getParentSpanId(),
       sampled: span.isSampled(),
     };
-  }
-
-  getDebugId() {
-    return this.store.id;
   }
 
   startSpan(name: string): ISpan {
@@ -91,6 +87,10 @@ export class Tracer implements ContextProvider, ITracer {
       options.attributes,
       parentContext?.sampled,
     );
+  }
+
+  enterWithSpan(span: ISpan): void {
+    return this.store.enterWith(span);
   }
 
   withSpan<R>(name: string, fn: (span: ISpan) => R): R {
@@ -166,12 +166,12 @@ export class NoopTracer implements ITracer {
   bindToContext<T extends (...args: any[]) => any>(fn: T): T {
     return AsyncResource.bind(fn);
   }
-  getDebugId(): string {
-    return '';
-  }
+
   startSpanWithOptions(options: StartSpanOptions): ISpan {
     return new NoopSpan(options.name);
   }
+
+  enterWithSpan(span: ISpan): void {}
 
   shouldSample(
     parentContext: TraceContext | undefined,
@@ -182,7 +182,6 @@ export class NoopTracer implements ITracer {
 }
 
 export class TraceContextStore {
-  public readonly id = Math.random().toString(16).slice(2);
   private storage = new AsyncLocalStorage<ISpan>();
 
   run<R>(span: ISpan, fn: () => R): R {
@@ -190,6 +189,10 @@ export class TraceContextStore {
   }
   getActiveSpan(): ISpan | undefined {
     return this.storage.getStore();
+  }
+
+  enterWith(span: ISpan) {
+    return this.storage.enterWith(span);
   }
 
   bind<T extends (...args: any[]) => any>(fn: T): T {

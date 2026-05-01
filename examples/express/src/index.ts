@@ -35,11 +35,11 @@ const logger = lens.logger;
 const metrics = lens.metrics;
 const tracer = lens.tracer;
 
-// const adapter = new ExpressMetricsAdapter();
-// adapter.register(app, lens.httpMetricsRecorder);
+const adapter = new ExpressMetricsAdapter();
+adapter.register(app, lens.httpMetricsRecorder);
 
-// const tracingAdapter = new ExpressTracingAdapter();
-// tracingAdapter.register(app, lens.httpTracingRecorder);
+const tracingAdapter = new ExpressTracingAdapter();
+tracingAdapter.register(app, lens.httpTracingRecorder);
 
 const httpDur = metrics.histogram(
   'example_http_request_duration_seconds',
@@ -55,13 +55,13 @@ app.use((req, res, next) => {
   const start = Date.now();
 
   const duration = Date.now() - start;
-  console.log('active before log', tracer.getTraceContext());
   logger.info(`Request processed`, {
     method: req.method,
     path: req.path,
     status: res.statusCode,
     duration: `${duration}ms`,
   });
+  next();
 });
 
 // metrics
@@ -89,7 +89,6 @@ app.get('/api/work/:id', async (req, res) => {
 
   const duration = (performance.now() - start) / 1000;
   httpDur.observe(duration, { method: 'GET', path: '/work' });
-  console.log('inside router handler', tracer.getTraceContext());
 
   logger.info('okay-done');
 

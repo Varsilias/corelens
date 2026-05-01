@@ -1,4 +1,3 @@
-import { routePath } from 'hono/route';
 import {
   HttpTracingAdapter,
   HttpTracingRecorder,
@@ -15,31 +14,58 @@ export class HonoTracingAdapter implements HttpTracingAdapter<Hono> {
     }
 
     app.use('*', async (c: Context, next) => {
+      const req = c.req;
+      const route = this.resolveRoute(c);
+
       const span = recorder.start({
-        method: c.req.method,
-        route: 'unmatched_route', // resolved after next()
-        target: c.req.url,
+        method: req.method,
+        route, // resolved after next()
+        target: req.url,
         protocol: new URL(c.req.url).protocol.replace(':', ''),
-        userAgent: c.req.header('user-agent'),
-        traceparent: c.req.header('traceparent'),
+        userAgent: req.header('user-agent'),
+        traceparent: req.header('traceparent'),
       });
+
+      recorder.enterWithSpan(span);
 
       try {
         await next();
+        const finalRoute = req.routePath || req.path || route;
+        span?.setAttribute('http.route', finalRoute);
+        recorder.end(span, {
+          status: c.res.status,
+        });
       } catch (err) {
-        recorder.runWithSpan(span, () => {
-          recorder.end(span, { status: 500 });
+        span?.recordException(err);
+        span?.setStatus('error');
+
+        recorder.end(span, {
+          status: 500,
         });
         throw err;
       }
-
-      // Route is only known after next() resolves in Hono
-      const route = routePath(c) || 'unmatched_route';
-      span?.setAttribute('http.route', route);
-
-      recorder.runWithSpan(span, () => {
-        recorder.end(span, { status: c.res.status });
-      });
     });
+  }
+
+  private resolveRoute(c: Context): string {
+    try {
+      const matched = c.req.matchedRoutes;
+
+      if (!matched || matched.length === 0) {
+        return new URL(c.req.url).pathname ?? 'unmatched_route';
+      }
+
+      // Filter out the wildcard middleware route ('*') registered by this adapter,
+      // then take the last remaining entry which is the actual handler.
+      const handlerRoute = [...matched]
+        .reverse()
+        .find((r) => r.path !== '*' && r.path !== '/*');
+
+      return (
+        handlerRoute?.path ?? new URL(c.req.url).pathname ?? 'unmatched_route'
+      );
+    } catch {
+      return 'unmatched_route';
+    }
   }
 }

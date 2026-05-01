@@ -1,10 +1,14 @@
-import { FastifyInstance, FastifyReply } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import {
   HttpTracingAdapter,
   HttpTracingRecorder,
 } from '../http-tracing-recorder';
 import { ISpan } from '../../core/traces/span';
+
+type CorelensFastifyRequest = FastifyRequest & {
+  corelensSpan?: ReturnType<HttpTracingRecorder['start']>;
+};
 
 export class FastifyTracingsAdapter implements HttpTracingAdapter<FastifyInstance> {
   register(app: FastifyInstance, recorder: HttpTracingRecorder): void {
@@ -15,7 +19,7 @@ export class FastifyTracingsAdapter implements HttpTracingAdapter<FastifyInstanc
       return;
     }
 
-    app.addHook('onRequest', async (request: any) => {
+    app.addHook('onRequest', (request: CorelensFastifyRequest, reply, done) => {
       try {
         const route =
           request.routeOptions?.url || request.url || 'unmatched_route';
@@ -30,14 +34,24 @@ export class FastifyTracingsAdapter implements HttpTracingAdapter<FastifyInstanc
         });
 
         request.corelensSpan = span;
+        recorder.enterWithSpan(span);
+        done();
       } catch (err) {
         console.warn('[Corelens] Failed to start trace span:', err);
       }
     });
 
     app.addHook(
+      'preHandler',
+      (request: CorelensFastifyRequest, reply, done) => {
+        recorder.enterWithSpan(request.corelensSpan);
+        done();
+      },
+    );
+
+    app.addHook(
       'onError',
-      async (request: any, reply: FastifyReply, error: Error) => {
+      (request: any, reply: FastifyReply, error: Error) => {
         try {
           const span = request.corelensSpan as ISpan;
           if (!span) return;
@@ -48,17 +62,22 @@ export class FastifyTracingsAdapter implements HttpTracingAdapter<FastifyInstanc
       },
     );
 
-    app.addHook('onResponse', async (request: any, reply: FastifyReply) => {
-      try {
-        const span = request.corelensSpan as ISpan;
-        if (!span) return;
+    app.addHook(
+      'onResponse',
+      (request: CorelensFastifyRequest, reply: FastifyReply, done) => {
+        const span = request.corelensSpan;
 
-        recorder.runWithSpan(span, () => {
-          recorder.end(span, { status: reply.statusCode });
+        const route =
+          request.routeOptions?.url || request.url || 'unmatched_route';
+
+        span?.setAttribute('http.route', route);
+
+        recorder.end(span, {
+          status: reply.statusCode,
         });
-      } catch (err) {
-        console.warn('[Corelens] Failed to end trace span:', err);
-      }
-    });
+
+        done();
+      },
+    );
   }
 }

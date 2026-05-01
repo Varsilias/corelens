@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Context, Hono } from 'hono';
 import { routePath } from 'hono/route';
 
 import {
@@ -19,25 +19,41 @@ export class HonoMetricsAdapter implements HttpMetricsAdapter<Hono> {
       const start = performance.now();
 
       let status = 500;
-      let route = 'unmatched_route';
+      let route = this.resolveRoute(c);
 
       try {
         await next();
         status = c.res.status;
-        route = routePath(c) || 'unmatched_route';
       } catch (err) {
         throw err;
       } finally {
         const method = c.req.method;
         const durationSeconds = (performance.now() - start) / 1000;
 
-        recorder.record({
-          method,
-          route,
-          status,
-          durationSeconds,
-        });
+        recorder.record({ method, route, status, durationSeconds });
       }
     });
+  }
+
+  private resolveRoute(c: Context): string {
+    try {
+      const matched = c.req.matchedRoutes;
+
+      if (!matched || matched.length === 0) {
+        return new URL(c.req.url).pathname ?? 'unmatched_route';
+      }
+
+      // Filter out the wildcard middleware route ('*') registered by this adapter,
+      // then take the last remaining entry which is the actual handler.
+      const handlerRoute = [...matched]
+        .reverse()
+        .find((r) => r.path !== '*' && r.path !== '/*');
+
+      return (
+        handlerRoute?.path ?? new URL(c.req.url).pathname ?? 'unmatched_route'
+      );
+    } catch {
+      return 'unmatched_route';
+    }
   }
 }

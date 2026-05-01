@@ -44,6 +44,7 @@ const exporter = new PrometheusTextExporter();
 
 const adapter = new FastifyMetricsAdapter();
 adapter.register(fastify, lens.httpMetricsRecorder);
+
 const tracingAdapter = new FastifyTracingsAdapter();
 tracingAdapter.register(fastify, lens.httpTracingRecorder);
 
@@ -69,19 +70,6 @@ fastify.get('/api/data', async () => {
 });
 
 fastify.get('/api/work/:id', async (request, reply) => {
-  // tracer.withSpan(`${request.method} ${request.url}`, async () => {
-  //   requestTotal.inc();
-  //   const start = performance.now();
-
-  //   // Simulate varying work
-  //   const delay = Math.random() * 100;
-  //   await new Promise((r) => setTimeout(r, delay));
-
-  //   const duration = (performance.now() - start) / 1000;
-  //   httpDur.observe(duration, { method: 'GET', path: '/work' });
-  //   logger.info('work-done');
-  //   return reply.send('done');
-  // });
   requestTotal.inc();
   const start = performance.now();
 

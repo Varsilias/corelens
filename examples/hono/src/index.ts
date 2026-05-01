@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server';
 import {
   corelens,
   HonoMetricsAdapter,
+  HonoTracingAdapter,
   PrometheusTextExporter,
 } from '@varsilias/corelens';
 
@@ -15,6 +16,7 @@ const lens = corelens({
     enabled: true,
     maxQueueBytes: 1024 * 1024, // 1MB for testing
     fullQueuePolicy: 'drop-oldest',
+    enrichWithTraceContext: true,
   },
   metrics: {
     enabled: true,
@@ -27,13 +29,23 @@ const lens = corelens({
       ignoredRoutes: ['/metrics', '/health', '/liveness', '/debug/stats'],
     },
   },
+  traces: {
+    enabled: true,
+    http: {
+      enabled: true,
+    },
+  },
 });
 
 const logger = lens.logger;
 const metrics = lens.metrics;
+const tracer = lens.tracer;
 
 const adapter = new HonoMetricsAdapter();
-adapter.register(app, lens.httpRecorder);
+adapter.register(app, lens.httpMetricsRecorder);
+
+const tracingAdapter = new HonoTracingAdapter();
+tracingAdapter.register(app, lens.httpTracingRecorder);
 
 const exporter = new PrometheusTextExporter();
 const requestTotal = metrics.counter(
@@ -83,9 +95,11 @@ app.get('/api/work/:id', async (c) => {
 });
 
 app.get('/api/error', (c) => {
-  requestTotal.inc();
-  lens.logger.error('Critical API Failure', { code: 'ERR_500' });
-  return c.json({ error: 'Internal Server Error' }, 500);
+  return tracer.withSpan(`${c.req.method} ${c.req.routePath}`, () => {
+    requestTotal.inc();
+    logger.error('Critical API Failure', { code: 'ERR_500' });
+    return c.json({ error: 'Internal Server Error' }, 500);
+  });
 });
 
 app.get('/metrics', (c) => {

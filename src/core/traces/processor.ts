@@ -4,6 +4,9 @@ export class InMemorySpanProcessor implements SpanProcessor {
   private container: TraceSnapshot[] = [];
 
   onEnd(span: Span) {
+    if (!span.sampled) {
+      return;
+    }
     this.container.push(span.toJSON());
   }
 

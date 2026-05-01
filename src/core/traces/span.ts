@@ -133,8 +133,9 @@ export class Span implements ISpan {
     if (this.endTime > 0 || this.endTimeEpochNs > 0) return;
     this.endTime = performance.now();
     this.endTimeEpochNs = Date.now();
-    this.status = 'ok';
-
+    if (this.status === 'unset') {
+      this.status = 'ok';
+    }
     // Notify the processor that we are done
     this.onEnd(this);
   }

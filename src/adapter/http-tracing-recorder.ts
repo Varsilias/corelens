@@ -17,7 +17,7 @@ export class HttpTracingRecorder {
     private tracer: ITracer,
     private readonly config: HttpTracingAdapterOptions,
   ) {
-    this.ignoredRoutes = new Set(config.ignoredRoutes);
+    this.ignoredRoutes = new Set(config.ignoredRoutes ?? []);
   }
 
   get isEnabled(): boolean {
@@ -61,6 +61,14 @@ export class HttpTracingRecorder {
     }
 
     return this.tracer.runInContext(span, fn);
+  }
+
+  enterWithSpan(span: ISpan | undefined): void {
+    if (!span) {
+      return;
+    }
+
+    this.tracer.enterWithSpan(span);
   }
 
   end(span: ISpan | undefined, data: { status: number }): void {
