@@ -131,3 +131,9 @@ package-lock.json
 examples/express/package-lock.json
 examples/fastify/package-lock.json
 examples/hono/package-lock.json
+
+examples/express/.env
+examples/fastify/.env
+examples/hono/.env
+
+.vscode

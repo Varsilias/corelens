@@ -1,7 +1,16 @@
 import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { randomBytes } from 'node:crypto';
-import { ISpan, NoopSpan, Span, SpanKind, StartSpanOptions } from './span';
+import {
+  ClientSpanContext,
+  ClientSpanOptions,
+  ISpan,
+  NoopSpan,
+  Span,
+  SpanKind,
+  StartSpanOptions,
+} from './span';
 import { InMemorySpanProcessor } from './processor';
+import { W3CTraceContextPropagator } from './propagator';
 
 export type TraceContext = {
   traceId: string;
@@ -23,10 +32,11 @@ export interface ITracer {
   runInContext<R>(span: ISpan, fn: () => R): R;
   bindToContext<T extends (...args: any[]) => any>(fn: T): T;
   enterWithSpan(span: ISpan): void;
-  shouldSample(
-    parentContext: TraceContext | undefined,
-    samplingRate: number,
-  ): boolean;
+  shouldSample(parentContext: TraceContext | undefined): boolean;
+  withClientSpan<R>(
+    options: ClientSpanOptions,
+    fn: (ctx: ClientSpanContext) => R,
+  ): R;
 }
 
 export class Tracer implements ContextProvider, ITracer {
@@ -114,6 +124,49 @@ export class Tracer implements ContextProvider, ITracer {
     });
   }
 
+  withClientSpan<R>(
+    options: ClientSpanOptions,
+    fn: (ctx: ClientSpanContext) => R,
+  ): R {
+    const span = this.startSpanWithOptions({
+      name: options.name,
+      kind: SpanKind.CLIENT,
+      attributes: options.attributes,
+    });
+
+    return this.store.run(span, () => {
+      const traceparent = W3CTraceContextPropagator.format({
+        traceId: span.getTraceId(),
+        spanId: span.getSpanId(),
+        parentSpanId: span.getParentSpanId(),
+        sampled: span.isSampled(),
+      });
+
+      try {
+        const result = fn({ span, traceparent });
+        if (result instanceof Promise) {
+          return result
+            .catch((error) => {
+              span.recordException(error);
+              span.setStatus('error');
+              throw error;
+            })
+            .finally(() => {
+              span.end();
+            }) as R;
+        }
+
+        span.end();
+        return result;
+      } catch (error) {
+        span.recordException(error);
+        span.setStatus('error');
+        span.end();
+        throw error;
+      }
+    });
+  }
+
   runInContext<R>(span: ISpan, fn: () => R): R {
     return this.store.run(span, fn);
   }
@@ -176,11 +229,19 @@ export class NoopTracer implements ITracer {
 
   enterWithSpan(span: ISpan): void {}
 
-  shouldSample(
-    parentContext: TraceContext | undefined,
-    samplingRate: number,
-  ): boolean {
+  shouldSample(parentContext: TraceContext | undefined): boolean {
     return false;
+  }
+
+  withClientSpan<R>(
+    options: ClientSpanOptions,
+    fn: (ctx: ClientSpanContext) => R,
+  ): R {
+    const span = new NoopSpan(options.name);
+    return fn({
+      span,
+      traceparent: W3CTraceContextPropagator.defaultTraceParent,
+    });
   }
 }
 

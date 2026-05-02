@@ -7,6 +7,8 @@ type RemoteTraceContext = {
 };
 
 export class W3CTraceContextPropagator {
+  static defaultTraceParent =
+    '00-00000000000000000000000000000000-0000000000000000-00';
   /**
    * Parses the 'traceparent' header.
    * Format: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
@@ -42,21 +44,9 @@ export class W3CTraceContextPropagator {
   /**
    * Formats the context into a 'traceparent' string for outbound calls.
    */
-  format(ctx: TraceContext): string {
-    const { traceId, spanId, sampled } = ctx;
-    const isHex = (str: string) => /^[0-9a-fA-F]+$/.test(str);
+  static format(ctx: TraceContext): string {
+    const flags = ctx.sampled ? '01' : '00';
 
-    // sanity check for W3C spec
-    if (
-      traceId.length !== 32 ||
-      !isHex(traceId) ||
-      spanId.length !== 16 ||
-      !isHex(spanId)
-    )
-      return '';
-
-    const flags = sampled ? '01' : '00';
-
-    return `00-${traceId}-${spanId}-${flags}`;
+    return `00-${ctx.traceId}-${ctx.spanId}-${flags}`;
   }
 }

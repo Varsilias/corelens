@@ -6,7 +6,15 @@
   "scripts": {
     "dev": "nodemon --watch src --watch ../../src --ext ts --exec ts-node --require tsconfig-paths/register src/index.ts",
     "start": "nodemon --watch src --ext ts --exec 'ts-node' src/index.ts",
-    "bench": "autocannon -c 100 -d 20 http://localhost:3000/api/work/12"
+    "prisma:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "seed:products": "node scripts/seed-products.js",
+    "bench": "npm run bench:products",
+    "bench:products": "node scripts/bench-products.js",
+    "bench:product-writes": "node scripts/bench-product-writes.js",
+    "bench:orders": "node scripts/bench-orders.js",
+    "bench:mixed": "node scripts/bench-mixed.js",
+    "bench:logger": "node scripts/bench-logger.js"
   },
   "keywords": [
     "corelens",
@@ -18,14 +26,18 @@
   "author": "Daniel Okoronkwo <danielokoronkwo90@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "@prisma/client": "^6.18.0",
     "@varsilias/corelens": "file:../../",
-    "express": "^5.2.1"
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "redis": "^5.9.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^25.6.0",
     "autocannon": "^8.0.0",
     "nodemon": "^3.1.14",
+    "prisma": "^6.18.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.3"

@@ -2,7 +2,7 @@ import { TraceContext } from '.';
 
 export type SpanStatus = 'unset' | 'ok' | 'error';
 
-type SpanAttribute = Record<string, string>;
+type SpanAttribute = Record<string, string | number | boolean>;
 type SpanEvent = {
   name: string;
   timestamp: number;
@@ -14,6 +14,16 @@ export enum SpanKind {
   SERVER = 'server',
   CLIENT = 'client',
 }
+
+export type ClientSpanOptions = {
+  name: string;
+  attributes: SpanAttribute;
+};
+
+export type ClientSpanContext = {
+  span: ISpan;
+  traceparent: string;
+};
 
 export type StartSpanOptions = {
   name: string;
@@ -41,7 +51,7 @@ export type TraceSnapshot = {
   durationMs: number;
   status: SpanStatus;
   attributes: {
-    [x: string]: string;
+    [x: string]: string | number | boolean;
   };
   events: SpanEvent[];
 };

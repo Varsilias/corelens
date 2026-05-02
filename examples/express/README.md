@@ -1,50 +1,82 @@
-## Corelen Express Example
+## Corelens Express Ecommerce Example
 
-### First Pass Test
+This example is a small ecommerce API used to exercise Corelens tracing across
+HTTP middleware, controllers, services, Prisma/Postgres calls, and Redis calls.
+
+Corelens is still installed from the local library source:
+
+```json
+"@varsilias/corelens": "file:../../"
+```
+
+The TypeScript path alias also points at `../../src/index.ts`, so changes in the
+library source are visible while running `npm run dev`.
+
+### Run
 
 ```bash
- npm run bench
-
-> example-express@1.0.0 bench
-> autocannon -c 100 -d 20 http://localhost:3000/api/data
-
-Running 20s test @ http://localhost:3000/api/data
-100 connections
-
-
-┌─────────┬──────┬──────┬───────┬───────┬─────────┬─────────┬────────┐
-│ Stat    │ 2.5% │ 50%  │ 97.5% │ 99%   │ Avg     │ Stdev   │ Max    │
-├─────────┼──────┼──────┼───────┼───────┼─────────┼─────────┼────────┤
-│ Latency │ 4 ms │ 5 ms │ 9 ms  │ 15 ms │ 5.24 ms │ 7.13 ms │ 383 ms │
-└─────────┴──────┴──────┴───────┴───────┴─────────┴─────────┴────────┘
-┌───────────┬────────┬────────┬─────────┬─────────┬──────────┬──────────┬────────┐
-│ Stat      │ 1%     │ 2.5%   │ 50%     │ 97.5%   │ Avg      │ Stdev    │ Min    │
-├───────────┼────────┼────────┼─────────┼─────────┼──────────┼──────────┼────────┤
-│ Req/Sec   │ 13,191 │ 13,191 │ 18,079  │ 20,079  │ 17,268.6 │ 1,936.21 │ 13,191 │
-├───────────┼────────┼────────┼─────────┼─────────┼──────────┼──────────┼────────┤
-│ Bytes/Sec │ 3.5 MB │ 3.5 MB │ 4.79 MB │ 5.32 MB │ 4.58 MB  │ 514 kB   │ 3.5 MB │
-└───────────┴────────┴────────┴─────────┴─────────┴──────────┴──────────┴────────┘
-
-Req/Bytes counts sampled once per second.
-# of samples: 20
-
-345k requests in 20.02s, 91.5 MB read
-
-{
-  "logs": {
-    "producedCount": 345487,
-    "flushedCount": 345487,
-    "backPressureHitCount": 0,
-    "drainCount": 0,
-    "maxQueueLength": 1,
-    "currentQueueLength": 0,
-    "isDraining": false,
-    "peakQueuedBytes": 186,
-    "queuedBytes": 0,
-    "droppedCount": 0,
-    "acceptedCount": 345487,
-    "evictedCount": 0,
-    "softLimitHitCount": 0
-  }
-}
+cp .env.example .env
+docker compose up -d
+npm install
+npm run prisma:generate
+npm run db:migrate
+npm run dev
 ```
+
+### API
+
+```bash
+curl http://localhost:3000/health
+curl http://localhost:3000/api/products
+curl -X POST http://localhost:3000/api/products \
+  -H 'content-type: application/json' \
+  -d '{"sku":"SKU-001","name":"Corelens Hoodie","priceCents":6500,"inventory":10}'
+curl http://localhost:3000/api/products/:id
+curl -X POST http://localhost:3000/api/orders \
+  -H 'content-type: application/json' \
+  -d '{"customerEmail":"buyer@example.com","items":[{"productId":"PRODUCT_ID","quantity":1}]}'
+curl http://localhost:3000/api/orders/:id
+curl http://localhost:3000/metrics
+curl http://localhost:3000/debug/stats
+```
+
+### Benchmarks
+
+These scripts avoid Postman/manual clients and generate request bodies safely for
+write-heavy tests.
+
+```bash
+npm run seed:products
+npm run bench:products
+npm run bench:product-writes
+npm run bench:orders
+npm run bench:mixed
+npm run bench:logger
+```
+
+Common knobs:
+
+```bash
+BENCH_BASE_URL=http://localhost:3000
+BENCH_CONNECTIONS=200
+BENCH_DURATION_SECONDS=60
+BENCH_RATE=500
+BENCH_PRODUCT_COUNT=100
+BENCH_ORDER_PRODUCT_POOL=50
+BENCH_LOGGER_MESSAGES=500000
+```
+
+`bench:products` uses autocannon against `GET /api/products`. The write and
+mixed benchmarks use generated JSON payloads so unique product SKUs and customer
+emails do not collide under load. `bench:logger` runs Corelens directly and emits
+logs inside a traced span to measure logger queue and flush behavior under load.
+
+### Flow
+
+- `src/config/corelens.ts` owns Corelens setup, adapters, metrics rendering, and shared logger/tracer exports.
+- `src/routes` maps ecommerce endpoints to controllers.
+- `src/controllers` handles HTTP request/response boundaries.
+- `src/services` contains application behavior and Redis cache access.
+- `src/models` contains Prisma-backed data access.
+- `src/middleware` contains Redis-backed rate limiting and session tracking.
+- `prisma/schema.prisma` defines the Postgres data model.
