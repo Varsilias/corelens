@@ -38,7 +38,7 @@ export type CorelensMetricsConfig = {
 
 export type CorelensTracesConfig = {
   enabled: boolean;
-  samplingRate?: number; // 1-100
+  samplingRate?: number; // 0-1
   http?: {
     enabled?: boolean;
     ignoredRoutes?: string[];

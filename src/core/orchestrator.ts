@@ -199,7 +199,7 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
     },
     traces: {
       enabled: cfg.traces?.enabled ?? false,
-      samplingRate: cfg?.traces?.samplingRate ?? 100,
+      samplingRate: normalizeSamplingRate(cfg?.traces?.samplingRate),
       http: {
         enabled: cfg?.traces?.http?.enabled ?? false,
         ignoredRoutes: cfg?.traces?.http?.ignoredRoutes ?? [
@@ -214,4 +214,18 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
   } as NormalisedConfig;
 
   return config;
+}
+
+function normalizeSamplingRate(value: unknown): number {
+  if (value === undefined) return 1;
+
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    throw new Error('samplingRate must be a number between 0 and 1');
+  }
+
+  if (value < 0 || value > 1) {
+    throw new Error('samplingRate must be between 0 and 1');
+  }
+
+  return value;
 }

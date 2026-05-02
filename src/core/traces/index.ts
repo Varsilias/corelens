@@ -1,6 +1,6 @@
 import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { randomBytes } from 'node:crypto';
-import { ISpan, NoopSpan, Span, StartSpanOptions } from './span';
+import { ISpan, NoopSpan, Span, SpanKind, StartSpanOptions } from './span';
 import { InMemorySpanProcessor } from './processor';
 
 export type TraceContext = {
@@ -31,13 +31,15 @@ export interface ITracer {
 
 export class Tracer implements ContextProvider, ITracer {
   private readonly serviceName: string;
+  private readonly samplingRate: number = 1;
   constructor(
     private readonly store: TraceContextStore,
     private readonly generator: TraceIdGenerator,
     private readonly processor: InMemorySpanProcessor,
-    config: { serviceName: string },
+    config: { serviceName: string; samplingRate: number },
   ) {
     this.serviceName = config.serviceName;
+    this.samplingRate = config.samplingRate;
   }
 
   getTraceContext(): TraceContext | undefined {
@@ -53,21 +55,7 @@ export class Tracer implements ContextProvider, ITracer {
   }
 
   startSpan(name: string): ISpan {
-    const parent = this.store.getActiveSpan();
-
-    const traceId = parent
-      ? parent.getTraceId()
-      : this.generator.generateTraceId();
-    const parentSpanId = parent ? parent.getSpanId() : null;
-    const spanId = this.generator.generateSpanId();
-
-    const span = new Span(name, traceId, spanId, parentSpanId, (s) =>
-      this.processor.onEnd(s),
-    );
-
-    span.setAttribute('service.name', this.serviceName);
-
-    return span;
+    return this.startSpanWithOptions({ name });
   }
 
   startSpanWithOptions(options: StartSpanOptions): ISpan {
@@ -76,17 +64,22 @@ export class Tracer implements ContextProvider, ITracer {
     const parentContext = options.parentContext ?? activeContext;
     const traceId = parentContext?.traceId ?? this.generator.generateTraceId();
     const spanId = this.generator.generateSpanId();
+    const sampled = this.shouldSample(parentContext);
 
-    return new Span(
+    const span = new Span(
       options.name,
       traceId,
       spanId,
       parentContext?.spanId ?? null,
       (s) => this.processor.onEnd(s),
-      options.kind,
+      options.kind ?? SpanKind.INTERNAL,
       options.attributes,
-      parentContext?.sampled,
+      sampled,
     );
+
+    span.setAttribute('service.name', this.serviceName);
+
+    return span;
   }
 
   enterWithSpan(span: ISpan): void {
@@ -94,7 +87,7 @@ export class Tracer implements ContextProvider, ITracer {
   }
 
   withSpan<R>(name: string, fn: (span: ISpan) => R): R {
-    const span = this.startSpan(name);
+    const span = this.startSpanWithOptions({ name });
     return this.store.run(span, () => {
       try {
         const result = fn(span);
@@ -133,15 +126,25 @@ export class Tracer implements ContextProvider, ITracer {
     return this.store.getActiveSpan();
   }
 
-  shouldSample(
-    parentContext: TraceContext | undefined,
-    samplingRate: number,
-  ): boolean {
+  /**Future implementation could include:
+   * always sample errorr
+    sample specific routes
+    sample slow requests
+    debug-force sampling
+    trust or ignore remote parent
+   */
+  /**
+   *
+   * @param parentContext
+   * @param samplingRate
+   * @returns
+   */
+  shouldSample(parentContext: TraceContext | undefined): boolean {
     if (parentContext) {
       return parentContext.sampled;
     }
 
-    return Math.random() < samplingRate;
+    return Math.random() < this.samplingRate;
   }
 }
 

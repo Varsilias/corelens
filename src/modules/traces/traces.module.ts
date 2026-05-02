@@ -18,7 +18,10 @@ export class TracesModule implements Module {
       this.contextStore,
       this.generator,
       this.processor,
-      { serviceName: config.serviceName },
+      {
+        serviceName: config.serviceName,
+        samplingRate: config.traces.samplingRate,
+      },
     );
   }
 
