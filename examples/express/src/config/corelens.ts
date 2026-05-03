@@ -23,8 +23,16 @@ export const lens = corelens({
   },
   traces: {
     enabled: true,
+    samplingRate: 0.1,
     http: {
       enabled: true,
+      ignoredRoutes: ['/debug/stats'],
+    },
+    batch: {
+      maxExportBatchSize: 1024,
+      maxQueueSize: 2048,
+      scheduledDelayMillis: 2000,
+      fullQueuePolicy: 'drop-newest',
     },
   },
 });

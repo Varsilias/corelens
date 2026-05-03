@@ -1,11 +1,5 @@
 import { TraceContext } from '.';
 
-type RemoteTraceContext = {
-  traceId: string;
-  parentSpanId: string;
-  sampled: boolean;
-};
-
 export class W3CTraceContextPropagator {
   static defaultTraceParent =
     '00-00000000000000000000000000000000-0000000000000000-00';

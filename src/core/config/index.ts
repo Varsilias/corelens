@@ -8,7 +8,7 @@ export type FullQueuePolicy = 'drop-newest' | 'drop-oldest' | 'block';
 export type CorelensLogConfig = {
   enabled: boolean;
   maxQueueBytes?: number;
-  fullQueuePolicy?: 'drop-newest' | 'drop-oldest' | 'block';
+  fullQueuePolicy?: FullQueuePolicy;
   reportStatsOnShutdown?: boolean;
   writer?: {
     highWaterMark: number;
@@ -42,6 +42,12 @@ export type CorelensTracesConfig = {
   http?: {
     enabled?: boolean;
     ignoredRoutes?: string[];
+  };
+  batch?: {
+    maxQueueSize: number;
+    maxExportBatchSize: number;
+    scheduledDelayMillis: number;
+    fullQueuePolicy?: FullQueuePolicy;
   };
 };
 
@@ -96,6 +102,12 @@ export type NormalisedTracesConfig = {
   http: {
     enabled: boolean;
     ignoredRoutes: string[];
+  };
+  batch: {
+    maxQueueSize: number;
+    maxExportBatchSize: number;
+    scheduledDelayMillis: number;
+    fullQueuePolicy: FullQueuePolicy;
   };
 };
 

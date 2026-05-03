@@ -49,7 +49,7 @@ export function buildApp() {
   });
 
   app.use(trackSession);
-  app.use(rateLimit);
+  // app.use(rateLimit);
   app.use('/api', routes);
 
   app.use((req, res) => {

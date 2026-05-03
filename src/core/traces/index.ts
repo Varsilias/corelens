@@ -7,9 +7,9 @@ import {
   NoopSpan,
   Span,
   SpanKind,
+  SpanProcessor,
   StartSpanOptions,
 } from './span';
-import { InMemorySpanProcessor } from './processor';
 import { W3CTraceContextPropagator } from './propagator';
 
 export type TraceContext = {
@@ -45,7 +45,7 @@ export class Tracer implements ContextProvider, ITracer {
   constructor(
     private readonly store: TraceContextStore,
     private readonly generator: TraceIdGenerator,
-    private readonly processor: InMemorySpanProcessor,
+    private readonly processor: SpanProcessor,
     config: { serviceName: string; samplingRate: number },
   ) {
     this.serviceName = config.serviceName;

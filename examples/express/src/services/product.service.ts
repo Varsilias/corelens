@@ -18,24 +18,27 @@ export class ProductService {
 
   async list() {
     return tracer.withSpan('service.products.list', async () => {
-      const cached = await tracer.withSpan('redis.products.get', async (span) => {
-        span.setAttribute('cache.key', productListCacheKey);
-        return redis.get(productListCacheKey);
-      });
+      // const cached = await tracer.withSpan(
+      //   'redis.products.get',
+      //   async (span) => {
+      //     span.setAttribute('cache.key', productListCacheKey);
+      //     return redis.get(productListCacheKey);
+      //   },
+      // );
 
-      if (cached) {
-        logger.info('Product list served from cache');
-        return JSON.parse(cached);
-      }
+      // if (cached) {
+      //   logger.info('Product list served from cache');
+      //   return JSON.parse(cached);
+      // }
 
       const products = await this.products.findMany();
 
-      await tracer.withSpan('redis.products.set', async (span) => {
-        span.setAttribute('cache.key', productListCacheKey);
-        await redis.set(productListCacheKey, JSON.stringify(products), {
-          EX: cacheTtlSeconds,
-        });
-      });
+      // await tracer.withSpan('redis.products.set', async (span) => {
+      //   span.setAttribute('cache.key', productListCacheKey);
+      //   await redis.set(productListCacheKey, JSON.stringify(products), {
+      //     EX: cacheTtlSeconds,
+      //   });
+      // });
 
       return products;
     });

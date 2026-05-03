@@ -1,4 +1,5 @@
 import { TraceContext } from '.';
+import { FullQueuePolicy } from '../config';
 
 export type SpanStatus = 'unset' | 'ok' | 'error';
 
@@ -35,9 +36,23 @@ export type StartSpanOptions = {
 export interface SpanProcessor {
   onStart?(span: Span): void;
   onEnd(span: Span): void;
-  shutdown?(): Promise<void>;
-  forceFlush?(): Promise<void>;
+  shutdown(): Promise<void>;
+  forceFlush(): Promise<void>;
+  snapshot(): Record<string, any>;
+  getFinishedSpans(limit: number): TraceSnapshot[];
 }
+
+export type SpanProcessorConfig = {
+  maxQueueSize: number;
+  fullQueuePolicy: FullQueuePolicy;
+};
+
+export type BatchSpanProcessorConfig = {
+  maxQueueSize: number;
+  fullQueuePolicy: FullQueuePolicy;
+  scheduledDelayMillis: number;
+  maxExportBatchSize: number;
+};
 
 export type TraceSnapshot = {
   name: string;
@@ -56,6 +71,11 @@ export type TraceSnapshot = {
   events: SpanEvent[];
 };
 
+export interface TraceExporter {
+  export(spans: TraceSnapshot[]): Promise<void>;
+  shutdown?(): Promise<void>;
+}
+
 export interface ISpan {
   getTraceId(): string;
   getParentSpanId(): string | null;
@@ -67,6 +87,12 @@ export interface ISpan {
   addEvent(name: string, attributes: Record<string, any>): void;
   toJSON(): TraceSnapshot;
   setStatus(status: SpanStatus): void;
+  getTime(): {
+    startTime: number;
+    endTime: number;
+    startTimeEpochNs: number;
+    endTimeEpochNs: number;
+  };
 }
 
 export class Span implements ISpan {
@@ -109,6 +135,15 @@ export class Span implements ISpan {
 
   isSampled(): boolean {
     return this.sampled;
+  }
+
+  getTime() {
+    return {
+      startTime: this.startTime,
+      endTime: this.endTime,
+      startTimeEpochNs: this.startTimeEpochNs,
+      endTimeEpochNs: this.endTimeEpochNs,
+    };
   }
 
   setAttribute(key: string, value: string) {
@@ -206,6 +241,15 @@ export class NoopSpan implements ISpan {
   }
 
   setStatus(status: SpanStatus): void {}
+
+  getTime() {
+    return {
+      startTime: 0,
+      endTime: 0,
+      startTimeEpochNs: 0,
+      endTimeEpochNs: 0,
+    };
+  }
 
   toJSON(): TraceSnapshot {
     return {

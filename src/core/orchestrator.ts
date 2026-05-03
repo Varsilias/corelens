@@ -100,8 +100,15 @@ class Corelens {
         snapshot: this.metricsModule.getFullSnapshot(),
         labelCardinalitySnapshot: this.metricsModule.getCardinalitySnapshot(),
       },
-      traces: this.tracesModule.snapshot(),
+      traces: {
+        snapshot: this.tracesModule.snapshot(),
+        finishedSpans: this.tracesModule.getFinishedSpans({ limit: 10 }),
+      },
     };
+  }
+
+  getFinishedSpans(ctx: { limit: number }) {
+    return this.tracesModule.getFinishedSpans(ctx);
   }
 
   start() {
@@ -206,6 +213,12 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
           '/metrics',
           '/health',
         ],
+      },
+      batch: {
+        fullQueuePolicy: cfg?.traces?.batch?.fullQueuePolicy ?? 'drop-newest',
+        maxExportBatchSize: cfg?.traces?.batch?.maxExportBatchSize ?? 512,
+        maxQueueSize: cfg?.traces?.batch?.maxQueueSize ?? 2048,
+        scheduledDelayMillis: cfg?.traces?.batch?.scheduledDelayMillis ?? 5000,
       },
     },
     lifecycle: {
