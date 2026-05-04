@@ -218,7 +218,7 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
         fullQueuePolicy: cfg?.traces?.batch?.fullQueuePolicy ?? 'drop-newest',
         maxExportBatchSize: cfg?.traces?.batch?.maxExportBatchSize ?? 512,
         maxQueueSize: cfg?.traces?.batch?.maxQueueSize ?? 2048,
-        scheduledDelayMillis: cfg?.traces?.batch?.scheduledDelayMillis ?? 5000,
+        scheduledDelayMs: cfg?.traces?.batch?.scheduledDelayMs ?? 5000,
       },
     },
     lifecycle: {

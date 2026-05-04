@@ -31,7 +31,7 @@ export const lens = corelens({
     batch: {
       maxExportBatchSize: 1024,
       maxQueueSize: 2048,
-      scheduledDelayMillis: 2000,
+      scheduledDelayMs: 2000,
       fullQueuePolicy: 'drop-newest',
     },
   },

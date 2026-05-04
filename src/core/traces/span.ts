@@ -50,8 +50,12 @@ export type SpanProcessorConfig = {
 export type BatchSpanProcessorConfig = {
   maxQueueSize: number;
   fullQueuePolicy: FullQueuePolicy;
-  scheduledDelayMillis: number;
+  scheduledDelayMs: number;
   maxExportBatchSize: number;
+  shutdownTimeoutMs: number;
+  diagnostics?: {
+    warnOnExportFailure: boolean;
+  };
 };
 
 export type TraceSnapshot = {

@@ -46,7 +46,7 @@ export type CorelensTracesConfig = {
   batch?: {
     maxQueueSize: number;
     maxExportBatchSize: number;
-    scheduledDelayMillis: number;
+    scheduledDelayMs: number;
     fullQueuePolicy?: FullQueuePolicy;
   };
 };
@@ -106,7 +106,7 @@ export type NormalisedTracesConfig = {
   batch: {
     maxQueueSize: number;
     maxExportBatchSize: number;
-    scheduledDelayMillis: number;
+    scheduledDelayMs: number;
     fullQueuePolicy: FullQueuePolicy;
   };
 };
