@@ -224,7 +224,11 @@ export class BatchSpanProcessor implements SpanProcessor {
   }
   onEnd(span: Span): void {
     this.endedCount++;
-
+    if (this.endedCount % 1000 === 0) {
+      console.log(
+        `[Corelens Debug] Span status: sampled=${span.sampled}, count=${this.endedCount}`,
+      );
+    }
     if (this.isShuttingDown) return;
 
     if (!span.sampled) {

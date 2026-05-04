@@ -40,16 +40,13 @@ export interface ITracer {
 }
 
 export class Tracer implements ContextProvider, ITracer {
-  private readonly serviceName: string;
-  private readonly samplingRate: number = 1;
   constructor(
     private readonly store: TraceContextStore,
     private readonly generator: TraceIdGenerator,
     private readonly processor: SpanProcessor,
-    config: { serviceName: string; samplingRate: number },
+    private readonly config: { serviceName: string; samplingRate: number },
   ) {
-    this.serviceName = config.serviceName;
-    this.samplingRate = config.samplingRate;
+    console.log('config', config);
   }
 
   getTraceContext(): TraceContext | undefined {
@@ -87,7 +84,7 @@ export class Tracer implements ContextProvider, ITracer {
       sampled,
     );
 
-    span.setAttribute('service.name', this.serviceName);
+    span.setAttribute('service.name', this.config.serviceName);
 
     return span;
   }
@@ -197,7 +194,7 @@ export class Tracer implements ContextProvider, ITracer {
       return parentContext.sampled;
     }
 
-    return Math.random() < this.samplingRate;
+    return Math.random() < this.config.samplingRate;
   }
 }
 

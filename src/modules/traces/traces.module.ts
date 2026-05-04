@@ -1,8 +1,16 @@
 import { Module } from '../../core/config';
 import { ModuleContext } from '../../core/config';
 import { TraceContextStore, TraceIdGenerator, Tracer } from '../../core/traces';
-import { ConsoleExporter } from '../../core/traces/exporters';
-import { InMemorySpanProcessor } from '../../core/traces/processor';
+import {
+  CircuitBreakerExporter,
+  ConsoleExporter,
+  FileTraceExporter,
+  RetryingTraceExporter,
+} from '../../core/traces/exporters';
+import {
+  BatchSpanProcessor,
+  InMemorySpanProcessor,
+} from '../../core/traces/processor';
 import { SpanProcessor, TraceExporter } from '../../core/traces/span';
 
 export class TracesModule implements Module {
@@ -13,17 +21,46 @@ export class TracesModule implements Module {
   private exporter: TraceExporter;
 
   constructor(private ctx: ModuleContext) {
-    const { config } = ctx;
+    const { config } = this.ctx;
     this.contextStore = new TraceContextStore();
     this.generator = new TraceIdGenerator();
-    this.exporter = new ConsoleExporter();
-    this.processor = new InMemorySpanProcessor(
-      {
-        fullQueuePolicy: config.traces.batch.fullQueuePolicy,
-        maxQueueSize: config.traces.batch.maxQueueSize,
-      },
-      this.exporter,
+
+    // this.exporter = new ConsoleExporter();
+    // this.processor = new InMemorySpanProcessor(
+    //   {
+    //     fullQueuePolicy: config.traces.batch.fullQueuePolicy,
+    //     maxQueueSize: config.traces.batch.maxQueueSize,
+    //   },
+    //   this.exporter,
+    // );
+
+    const retryConfig = {
+      maxRetries: config.export.retry.maxRetries,
+      initialDelayMs: config.export.retry.initialDelayMs,
+      maxDelayMs: config.export.retry.maxDelayMs,
+    };
+
+    const circuitConfig = {
+      threshold: config.export.circuitBreaker.failureThreshold,
+      resetTimeoutMs: config.export.circuitBreaker.resetTimeoutMs,
+    };
+
+    this.exporter = new CircuitBreakerExporter(
+      new RetryingTraceExporter(
+        new FileTraceExporter('trace.log'),
+        retryConfig,
+      ),
+      circuitConfig,
     );
+
+    this.processor = new BatchSpanProcessor(this.exporter, {
+      fullQueuePolicy: config.traces.batch.fullQueuePolicy,
+      maxExportBatchSize: config.traces.batch.maxExportBatchSize,
+      maxQueueSize: config.traces.batch.maxQueueSize,
+      scheduledDelayMs: config.traces.batch.scheduledDelayMs,
+      shutdownTimeoutMs: 3000,
+    });
+
     this.tracer = new Tracer(
       this.contextStore,
       this.generator,

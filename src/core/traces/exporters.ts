@@ -44,13 +44,15 @@ export class CircuitBreakerExporter implements TraceExporter {
 
   constructor(
     private readonly inner: TraceExporter,
-    private readonly threshold = 5,
-    private readonly resetTimeoutMs = 30000,
+    private config: {
+      threshold: number;
+      resetTimeoutMs: number;
+    },
   ) {}
 
   async export(spans: TraceSnapshot[]): Promise<void> {
     if (this.state === CircuitState.OPEN) {
-      if (Date.now() - this.lastFailureTime > this.resetTimeoutMs) {
+      if (Date.now() - this.lastFailureTime > this.config.resetTimeoutMs) {
         this.state = CircuitState.HALF_OPEN;
       } else {
         throw new Error('CircuitBreaker: Circuit is OPEN, failing fast.');
@@ -74,7 +76,7 @@ export class CircuitBreakerExporter implements TraceExporter {
   private onFailure() {
     this.failureCount++;
     this.lastFailureTime = Date.now();
-    if (this.failureCount >= this.threshold) {
+    if (this.failureCount >= this.config.threshold) {
       this.state = CircuitState.OPEN;
     }
   }
@@ -91,7 +93,7 @@ export class RetryingTraceExporter implements TraceExporter {
       maxRetries?: number;
       initialDelayMs?: number;
       maxDelayMs?: number;
-    } = {},
+    },
   ) {}
   async export(spans: TraceSnapshot[]): Promise<void> {
     const maxRetries = this.config.maxRetries ?? 3;
@@ -128,6 +130,7 @@ export class FileTraceExporter implements TraceExporter {
 
       await appendFile(this.filePath, payload);
     } catch (error) {
+      console.error(`[Corelens] Write failed:`, error);
       throw error;
     }
   }

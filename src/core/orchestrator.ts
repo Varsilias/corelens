@@ -8,6 +8,10 @@ import {
   DEFAULT_MAX_QUEUE_SIZE,
   DEFAULT_STREAM_HIGHWATERMARK,
   NormalisedConfig,
+  NormalisedExportConfig,
+  NormalisedLogConfig,
+  NormalisedMetricsConfig,
+  NormalisedTracesConfig,
 } from './config';
 import { ILogger, Logger } from './logger';
 import { Module } from './config';
@@ -169,62 +173,85 @@ function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
     throw new Error('serviceName is required during initialisation');
   }
 
-  const config = {
+  const logsCfg = cfg?.logs;
+  const logs: NormalisedLogConfig = {
+    enabled: logsCfg?.enabled ?? true,
+    fullQueuePolicy: logsCfg?.fullQueuePolicy ?? 'drop-newest',
+    maxQueueBytes: logsCfg?.maxQueueBytes ?? DEFAULT_MAX_QUEUE_SIZE,
+    reportStatsOnShutdown: logsCfg?.reportStatsOnShutdown ?? false,
+    format: logsCfg?.format ?? 'json',
+    colorize: logsCfg?.colorize ?? false,
+    level: logsCfg?.level ?? 'info',
+    enrichWithTraceContext: logsCfg?.enrichWithTraceContext ?? false,
+    timestamp: {
+      format: logsCfg?.timestamp?.format ?? 'iso',
+    },
+    writer: {
+      highWaterMark:
+        logsCfg?.writer?.highWaterMark ?? DEFAULT_STREAM_HIGHWATERMARK,
+    },
+  };
+
+  const metricsCfg = cfg?.metrics;
+  const metrics: NormalisedMetricsConfig = {
+    enabled: metricsCfg?.enabled ?? false,
+    maxSeriesPerMetric: metricsCfg?.maxSeriesPerMetric ?? 1000,
+    runtime: {
+      enabled: metricsCfg?.runtime?.enabled ?? false,
+      intervalMs: metricsCfg?.runtime?.intervalMs ?? 15000,
+    },
+    http: {
+      enabled: metricsCfg?.http?.enabled ?? false,
+      buckets: metricsCfg?.http?.buckets ?? DEFAULT_HTTP_BUCKETS,
+      ignoredRoutes: metricsCfg?.http?.ignoredRoutes ?? ['/metrics', '/health'],
+    },
+  };
+
+  const tracesCfg = cfg?.traces;
+  const traces: NormalisedTracesConfig = {
+    enabled: tracesCfg?.enabled ?? false,
+    samplingRate: normalizeSamplingRate(tracesCfg?.samplingRate),
+    http: {
+      enabled: tracesCfg?.http?.enabled ?? false,
+      ignoredRoutes: tracesCfg?.http?.ignoredRoutes ?? ['/metrics', '/health'],
+    },
+    batch: {
+      fullQueuePolicy: tracesCfg?.batch?.fullQueuePolicy ?? 'drop-newest',
+      maxExportBatchSize: tracesCfg?.batch?.maxExportBatchSize ?? 512,
+      maxQueueSize: tracesCfg?.batch?.maxQueueSize ?? 2048,
+      scheduledDelayMs: tracesCfg?.batch?.scheduledDelayMs ?? 5000,
+    },
+  };
+
+  const exportCfg = cfg?.export;
+  const exportConfig: NormalisedExportConfig = {
+    protocol: exportCfg?.protocol ?? 'otlp-http',
+    endpoint: exportCfg?.endpoint ?? '',
+    timeoutMs: exportCfg?.timeoutMs ?? 3000,
+    retry: {
+      enabled: exportCfg?.retry?.enabled ?? true,
+      initialDelayMs: exportCfg?.retry?.initialDelayMs ?? 100,
+      maxDelayMs: exportCfg?.retry?.maxDelayMs ?? 2000,
+      maxRetries: exportCfg?.retry?.maxRetries ?? 3,
+    },
+    circuitBreaker: {
+      enabled: exportCfg?.circuitBreaker?.enabled ?? true,
+      failureThreshold: exportCfg?.circuitBreaker?.failureThreshold ?? 5,
+      resetTimeoutMs: exportCfg?.circuitBreaker?.resetTimeoutMs ?? 30000,
+    },
+  };
+
+  const config: NormalisedConfig = {
     serviceName: cfg.serviceName,
-    logs: {
-      enabled: cfg?.logs?.enabled ?? true,
-      fullQueuePolicy: cfg?.logs?.fullQueuePolicy ?? 'drop-newest',
-      maxQueueBytes: cfg?.logs?.maxQueueBytes ?? DEFAULT_MAX_QUEUE_SIZE,
-      reportStatsOnShutdown: cfg?.logs?.reportStatsOnShutdown ?? false,
-      timestamp: {
-        format: cfg?.logs?.timestamp?.format ?? 'iso',
-      },
-      writer: {
-        highWaterMark:
-          cfg?.logs?.writer?.highWaterMark ?? DEFAULT_STREAM_HIGHWATERMARK,
-      },
-      format: cfg?.logs?.format ?? 'json',
-      colorize: cfg?.logs?.colorize ?? false,
-      level: cfg?.logs?.level ?? 'info',
-      enrichWithTraceContext: cfg?.logs?.enrichWithTraceContext ?? false,
-    },
-    metrics: {
-      enabled: cfg?.metrics?.enabled ?? false,
-      runtime: {
-        enabled: cfg?.metrics?.runtime?.enabled ?? false,
-        intervalMs: cfg?.metrics?.runtime?.intervalMs ?? 15000,
-      },
-      http: {
-        enabled: cfg?.metrics?.http?.enabled ?? false,
-        buckets: cfg?.metrics?.http?.buckets ?? DEFAULT_HTTP_BUCKETS,
-        ignoredRoutes: cfg?.metrics?.http?.ignoredRoutes ?? [
-          '/metrics',
-          '/health',
-        ],
-      },
-      maxSeriesPerMetric: cfg?.metrics?.maxSeriesPerMetric ?? 1000,
-    },
-    traces: {
-      enabled: cfg.traces?.enabled ?? false,
-      samplingRate: normalizeSamplingRate(cfg?.traces?.samplingRate),
-      http: {
-        enabled: cfg?.traces?.http?.enabled ?? false,
-        ignoredRoutes: cfg?.traces?.http?.ignoredRoutes ?? [
-          '/metrics',
-          '/health',
-        ],
-      },
-      batch: {
-        fullQueuePolicy: cfg?.traces?.batch?.fullQueuePolicy ?? 'drop-newest',
-        maxExportBatchSize: cfg?.traces?.batch?.maxExportBatchSize ?? 512,
-        maxQueueSize: cfg?.traces?.batch?.maxQueueSize ?? 2048,
-        scheduledDelayMs: cfg?.traces?.batch?.scheduledDelayMs ?? 5000,
-      },
-    },
+    logs,
+    metrics,
+    traces,
+    export: exportConfig,
     lifecycle: {
       handleProcessSignals: cfg?.lifecycle?.handleProcessSignals ?? false,
+      warnOnError: cfg?.lifecycle?.warnOnError ?? true,
     },
-  } as NormalisedConfig;
+  };
 
   return config;
 }

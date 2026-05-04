@@ -8,6 +8,28 @@ import type { Express } from 'express';
 
 export const lens = corelens({
   serviceName: process.env.CORELENS_SERVICE_NAME ?? 'corelens-commerce-example',
+  export: {
+    protocol: 'otlp-http',
+    endpoint: 'http://localhost:4318',
+    timeoutMs: 3000,
+
+    retry: {
+      enabled: true,
+      maxRetries: 3,
+      initialDelayMs: 100,
+      maxDelayMs: 2000,
+    },
+
+    circuitBreaker: {
+      enabled: true,
+      failureThreshold: 5,
+      resetTimeoutMs: 30000,
+    },
+  },
+  lifecycle: {
+    handleProcessSignals: true,
+    warnOnError: true,
+  },
   logs: {
     enabled: true,
     maxQueueBytes: 1024 * 1024,
@@ -23,13 +45,13 @@ export const lens = corelens({
   },
   traces: {
     enabled: true,
-    samplingRate: 0.1,
+    samplingRate: 0.5,
     http: {
       enabled: true,
       ignoredRoutes: ['/debug/stats'],
     },
     batch: {
-      maxExportBatchSize: 1024,
+      maxExportBatchSize: 512,
       maxQueueSize: 2048,
       scheduledDelayMs: 2000,
       fullQueuePolicy: 'drop-newest',

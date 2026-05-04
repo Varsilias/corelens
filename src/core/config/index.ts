@@ -3,7 +3,30 @@ import { LogLevel } from '../logger';
 export const DEFAULT_MAX_QUEUE_SIZE = 4 * 1024 * 1024;
 export const DEFAULT_STREAM_HIGHWATERMARK = 64 * 1024;
 
+// drop-newest: preserve old buffered logs, reject incoming pressure
+// drop-oldest: preserve freshest logs
+// block: preserve logs by applying backpressure to the producer
 export type FullQueuePolicy = 'drop-newest' | 'drop-oldest' | 'block';
+export type ExportProtocol = 'otlp-http';
+
+export type CorelensExportConfig = {
+  protocol: ExportProtocol;
+  endpoint: string;
+  timeoutMs: number;
+
+  retry?: {
+    enabled: boolean;
+    maxRetries: number;
+    initialDelayMs: number;
+    maxDelayMs: number;
+  };
+
+  circuitBreaker?: {
+    enabled: boolean;
+    failureThreshold: number;
+    resetTimeoutMs: number;
+  };
+};
 
 export type CorelensLogConfig = {
   enabled: boolean;
@@ -58,12 +81,35 @@ export type CorelensConfig = {
   traces?: CorelensTracesConfig;
   lifecycle?: {
     handleProcessSignals?: boolean;
+    warnOnError?: boolean;
   };
+  export?: CorelensExportConfig;
 };
 
-// drop-newest: preserve old buffered logs, reject incoming pressure
-// drop-oldest: preserve freshest logs
-// block: preserve logs by applying backpressure to the producer
+/**
+ * ===================================================
+ *                Normalised Configuration
+ * ===================================================
+ */
+
+export type NormalisedExportConfig = {
+  protocol: ExportProtocol;
+  endpoint: string;
+  timeoutMs: number;
+
+  retry: {
+    enabled: boolean;
+    maxRetries: number;
+    initialDelayMs: number;
+    maxDelayMs: number;
+  };
+
+  circuitBreaker: {
+    enabled: boolean;
+    failureThreshold: number;
+    resetTimeoutMs: number;
+  };
+};
 
 export type NormalisedLogConfig = {
   enabled: boolean;
@@ -118,7 +164,9 @@ export type NormalisedConfig = {
   traces: NormalisedTracesConfig;
   lifecycle: {
     handleProcessSignals: boolean;
+    warnOnError: boolean;
   };
+  export: NormalisedExportConfig;
 };
 
 export type ModuleContext = {
