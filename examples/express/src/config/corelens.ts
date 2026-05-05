@@ -9,9 +9,12 @@ import type { Express } from 'express';
 export const lens = corelens({
   serviceName: process.env.CORELENS_SERVICE_NAME ?? 'corelens-commerce-example',
   export: {
-    protocol: 'otlp-http',
-    endpoint: 'http://localhost:4318',
-    timeoutMs: 3000,
+    enabled: true,
+    mode: 'batch',
+    destination: {
+      type: 'console',
+      pretty: false,
+    },
 
     retry: {
       enabled: true,
@@ -25,10 +28,19 @@ export const lens = corelens({
       failureThreshold: 5,
       resetTimeoutMs: 30000,
     },
+    batch: {
+      maxExportBatchSize: 512,
+      maxQueueSize: 2048,
+      scheduledDelayMs: 2000,
+      fullQueuePolicy: 'drop-newest',
+    },
+  },
+  diagnostics: {
+    warnOnConfigFallback: true,
+    warnOnExportFailure: true,
   },
   lifecycle: {
     handleProcessSignals: true,
-    warnOnError: true,
   },
   logs: {
     enabled: true,
@@ -49,12 +61,6 @@ export const lens = corelens({
     http: {
       enabled: true,
       ignoredRoutes: ['/debug/stats'],
-    },
-    batch: {
-      maxExportBatchSize: 512,
-      maxQueueSize: 2048,
-      scheduledDelayMs: 2000,
-      fullQueuePolicy: 'drop-newest',
     },
   },
 });

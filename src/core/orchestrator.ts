@@ -1,24 +1,13 @@
-import {
-  DEFAULT_HTTP_BUCKETS,
-  HttpMetricsRecorder,
-} from '../adapter/http-metrics-recorder';
+import { HttpMetricsRecorder } from '../adapter/http-metrics-recorder';
 import { LogsModule, MetricsModule, TracesModule } from '../modules';
-import {
-  CorelensConfig,
-  DEFAULT_MAX_QUEUE_SIZE,
-  DEFAULT_STREAM_HIGHWATERMARK,
-  NormalisedConfig,
-  NormalisedExportConfig,
-  NormalisedLogConfig,
-  NormalisedMetricsConfig,
-  NormalisedTracesConfig,
-} from './config';
+import { CorelensConfig, NormalisedConfig } from './config';
 import { ILogger, Logger } from './logger';
 import { Module } from './config';
 import { NoopPipeline } from './logger/pipeline';
 import { IMetricsRegistry, NoopMetricsRegistry } from './metrics/registry';
 import { ITracer, NoopTracer } from './traces';
 import { HttpTracingRecorder } from '../adapter/http-tracing-recorder';
+import { normaliseConfig } from './config/validator';
 
 class Corelens {
   private modules: Module[] = [];
@@ -166,106 +155,4 @@ export function corelens(config: CorelensConfig): Corelens {
   const sdk = new Corelens(normalisedConfig);
   sdk.start();
   return sdk;
-}
-
-function normaliseConfig(cfg: CorelensConfig): NormalisedConfig {
-  if (!cfg.serviceName) {
-    throw new Error('serviceName is required during initialisation');
-  }
-
-  const logsCfg = cfg?.logs;
-  const logs: NormalisedLogConfig = {
-    enabled: logsCfg?.enabled ?? true,
-    fullQueuePolicy: logsCfg?.fullQueuePolicy ?? 'drop-newest',
-    maxQueueBytes: logsCfg?.maxQueueBytes ?? DEFAULT_MAX_QUEUE_SIZE,
-    reportStatsOnShutdown: logsCfg?.reportStatsOnShutdown ?? false,
-    format: logsCfg?.format ?? 'json',
-    colorize: logsCfg?.colorize ?? false,
-    level: logsCfg?.level ?? 'info',
-    enrichWithTraceContext: logsCfg?.enrichWithTraceContext ?? false,
-    timestamp: {
-      format: logsCfg?.timestamp?.format ?? 'iso',
-    },
-    writer: {
-      highWaterMark:
-        logsCfg?.writer?.highWaterMark ?? DEFAULT_STREAM_HIGHWATERMARK,
-    },
-  };
-
-  const metricsCfg = cfg?.metrics;
-  const metrics: NormalisedMetricsConfig = {
-    enabled: metricsCfg?.enabled ?? false,
-    maxSeriesPerMetric: metricsCfg?.maxSeriesPerMetric ?? 1000,
-    runtime: {
-      enabled: metricsCfg?.runtime?.enabled ?? false,
-      intervalMs: metricsCfg?.runtime?.intervalMs ?? 15000,
-    },
-    http: {
-      enabled: metricsCfg?.http?.enabled ?? false,
-      buckets: metricsCfg?.http?.buckets ?? DEFAULT_HTTP_BUCKETS,
-      ignoredRoutes: metricsCfg?.http?.ignoredRoutes ?? ['/metrics', '/health'],
-    },
-  };
-
-  const tracesCfg = cfg?.traces;
-  const traces: NormalisedTracesConfig = {
-    enabled: tracesCfg?.enabled ?? false,
-    samplingRate: normalizeSamplingRate(tracesCfg?.samplingRate),
-    http: {
-      enabled: tracesCfg?.http?.enabled ?? false,
-      ignoredRoutes: tracesCfg?.http?.ignoredRoutes ?? ['/metrics', '/health'],
-    },
-    batch: {
-      fullQueuePolicy: tracesCfg?.batch?.fullQueuePolicy ?? 'drop-newest',
-      maxExportBatchSize: tracesCfg?.batch?.maxExportBatchSize ?? 512,
-      maxQueueSize: tracesCfg?.batch?.maxQueueSize ?? 2048,
-      scheduledDelayMs: tracesCfg?.batch?.scheduledDelayMs ?? 5000,
-    },
-  };
-
-  const exportCfg = cfg?.export;
-  const exportConfig: NormalisedExportConfig = {
-    protocol: exportCfg?.protocol ?? 'otlp-http',
-    endpoint: exportCfg?.endpoint ?? '',
-    timeoutMs: exportCfg?.timeoutMs ?? 3000,
-    retry: {
-      enabled: exportCfg?.retry?.enabled ?? true,
-      initialDelayMs: exportCfg?.retry?.initialDelayMs ?? 100,
-      maxDelayMs: exportCfg?.retry?.maxDelayMs ?? 2000,
-      maxRetries: exportCfg?.retry?.maxRetries ?? 3,
-    },
-    circuitBreaker: {
-      enabled: exportCfg?.circuitBreaker?.enabled ?? true,
-      failureThreshold: exportCfg?.circuitBreaker?.failureThreshold ?? 5,
-      resetTimeoutMs: exportCfg?.circuitBreaker?.resetTimeoutMs ?? 30000,
-    },
-  };
-
-  const config: NormalisedConfig = {
-    serviceName: cfg.serviceName,
-    logs,
-    metrics,
-    traces,
-    export: exportConfig,
-    lifecycle: {
-      handleProcessSignals: cfg?.lifecycle?.handleProcessSignals ?? false,
-      warnOnError: cfg?.lifecycle?.warnOnError ?? true,
-    },
-  };
-
-  return config;
-}
-
-function normalizeSamplingRate(value: unknown): number {
-  if (value === undefined) return 1;
-
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    throw new Error('samplingRate must be a number between 0 and 1');
-  }
-
-  if (value < 0 || value > 1) {
-    throw new Error('samplingRate must be between 0 and 1');
-  }
-
-  return value;
 }

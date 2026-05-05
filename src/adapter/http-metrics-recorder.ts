@@ -1,19 +1,5 @@
 import { Counter, Histogram, IMetricsRegistry } from '../core';
 
-export const DEFAULT_HTTP_BUCKETS = [
-  0.005, // 5ms
-  0.01, // 10ms
-  0.025, // 25ms
-  0.05, // 50ms
-  0.1, // 100ms
-  0.25, // 250ms
-  0.5, // 500ms
-  1, // 1s
-  2.5, // 2.5s
-  5, // 5s
-  10, // 10s
-];
-
 type HttpMetricsAdapterOptions = {
   enabled: boolean;
   buckets: number[];

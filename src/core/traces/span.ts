@@ -3,17 +3,20 @@ import { FullQueuePolicy } from '../config';
 
 export type SpanStatus = 'unset' | 'ok' | 'error';
 
-type SpanAttribute = Record<string, string | number | boolean>;
-type SpanEvent = {
+export type SpanAttribute = Record<string, string | number | boolean>;
+export type SpanEvent = {
   name: string;
-  timestamp: number;
+  timeUnixNano: number;
   attributes: Record<string, any>;
 };
 
 export enum SpanKind {
+  UNSPECIFIED = 'unspecified',
   INTERNAL = 'internal',
   SERVER = 'server',
   CLIENT = 'client',
+  PRODUCER = 'producer',
+  CONSUMER = 'consumer',
 }
 
 export type ClientSpanOptions = {
@@ -73,6 +76,7 @@ export type TraceSnapshot = {
     [x: string]: string | number | boolean;
   };
   events: SpanEvent[];
+  kind: SpanKind;
 };
 
 export interface TraceExporter {
@@ -197,7 +201,7 @@ export class Span implements ISpan {
 
     this.events.push({
       name,
-      timestamp: performance.now(),
+      timeUnixNano: Date.now(),
       attributes,
     });
   }
@@ -216,6 +220,7 @@ export class Span implements ISpan {
       events: [...this.events],
       startTimeEpoch: this.startTimeEpochNs,
       endTimeEpoch: this.endTimeEpochNs,
+      kind: this.kind,
     };
   }
 }
@@ -269,6 +274,20 @@ export class NoopSpan implements ISpan {
       status: 'ok' as SpanStatus,
       endTimeEpoch: 0,
       startTimeEpoch: 0,
+      kind: 'unspecified' as SpanKind,
     };
   }
+}
+
+const dictionary = {
+  unspecified: 0,
+  internal: 1,
+  server: 2,
+  client: 3,
+  producer: 4,
+  consumer: 5,
+};
+
+export function mapKindToOtlpValue(value: SpanKind) {
+  return dictionary[value];
 }

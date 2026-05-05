@@ -54,10 +54,10 @@ export class TracesModule implements Module {
     );
 
     this.processor = new BatchSpanProcessor(this.exporter, {
-      fullQueuePolicy: config.traces.batch.fullQueuePolicy,
-      maxExportBatchSize: config.traces.batch.maxExportBatchSize,
-      maxQueueSize: config.traces.batch.maxQueueSize,
-      scheduledDelayMs: config.traces.batch.scheduledDelayMs,
+      fullQueuePolicy: config.export.batch.fullQueuePolicy,
+      maxExportBatchSize: config.export.batch.maxExportBatchSize,
+      maxQueueSize: config.export.batch.maxQueueSize,
+      scheduledDelayMs: config.export.batch.scheduledDelayMs,
       shutdownTimeoutMs: 3000,
     });
 

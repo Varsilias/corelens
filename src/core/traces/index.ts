@@ -45,9 +45,7 @@ export class Tracer implements ContextProvider, ITracer {
     private readonly generator: TraceIdGenerator,
     private readonly processor: SpanProcessor,
     private readonly config: { serviceName: string; samplingRate: number },
-  ) {
-    console.log('config', config);
-  }
+  ) {}
 
   getTraceContext(): TraceContext | undefined {
     const span = this.store.getActiveSpan();
