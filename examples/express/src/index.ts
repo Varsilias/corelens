@@ -7,6 +7,14 @@ import { prisma } from './config/prisma';
 
 const port = Number(process.env.PORT ?? 3000);
 
+process.on('uncaughtException', (err) => {
+  console.error('[CRASH]', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
+
 async function bootstrap() {
   await connectRedis();
 
@@ -17,11 +25,11 @@ async function bootstrap() {
 
   server.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code === 'EADDRINUSE') {
-      logger.error(`Port ${port} is already in use`);
+      console.error(`Port ${port} is already in use`);
       process.exit(1);
     }
 
-    logger.error('Server failed', { message: error.message });
+    console.error('Server failed', { message: error.message });
     process.exit(1);
   });
 
@@ -32,7 +40,7 @@ async function bootstrap() {
       if (shuttingDown) return;
       shuttingDown = true;
 
-      logger.info(`Received ${signal}. Shutting down...`);
+      console.info(`Received ${signal}. Shutting down...`);
 
       server.close(async () => {
         await closeRedis();

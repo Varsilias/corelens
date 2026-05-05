@@ -1,3 +1,5 @@
+import { OTLPSignalRequest } from './types';
+
 type OtlpHttpTransportConfig = {
   endpoint: string;
   headers?: Record<string, string>;
@@ -7,7 +9,7 @@ type OtlpHttpTransportConfig = {
 export class OtlpHttpTransport {
   constructor(private readonly config: OtlpHttpTransportConfig) {}
 
-  async postJson(body: unknown): Promise<void> {
+  async postJson(body: OTLPSignalRequest): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),

@@ -360,3 +360,7 @@ export interface Module {
   start(): void;
   stop(): Promise<void>;
 }
+
+export interface SignalFormatter<T, R> {
+  format(record: T | T[]): R;
+}

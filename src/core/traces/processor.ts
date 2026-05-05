@@ -1,3 +1,4 @@
+import { Exporter } from '../../exporters/types';
 import { FullQueuePolicy } from '../config';
 import {
   BatchSpanProcessorConfig,
@@ -25,36 +26,23 @@ export type ProcessorSnapshot = {
   lastExportError?: string;
   lastExportErrorAt?: number;
 };
-export class InMemorySpanProcessor implements SpanProcessor {
+export class SimpleSpanProcessor implements SpanProcessor {
   private startedCount = 0;
   private endedCount = 0;
   private sampledCount = 0;
   private unsampledCount = 0;
   private exportedCount = 0;
-
-  // backpressure related stats
-  private backPressureHitCount = 0;
-  private evictedCount = 0;
+  private failedExportCount = 0;
   private droppedCount = 0;
+  private lastExportError?: string;
+  private lastExportErrorAt?: number;
 
-  // user defined tracker
-  private queue: TraceSnapshot[] = [];
-  private maxQueueSize = 1024;
-  private softMaxQueueSize: number;
-  private fullQueuePolicy: FullQueuePolicy = 'drop-newest'; // default to drop-newest
-  private softLimitHitCount = 0;
-
-  // lifecycle tracker
   private isShuttingDown = false;
 
   constructor(
     public config: SpanProcessorConfig,
-    private exporter?: TraceExporter | undefined,
-  ) {
-    this.maxQueueSize = config.maxQueueSize ?? 1000;
-    this.softMaxQueueSize = Math.floor(this.maxQueueSize * 0.8);
-    this.fullQueuePolicy = config.fullQueuePolicy ?? 'drop-newest';
-  }
+    private exporter?: Exporter<TraceSnapshot> | undefined,
+  ) {}
 
   onStart(span: Span): void {
     if (this.isShuttingDown) {
@@ -88,16 +76,19 @@ export class InMemorySpanProcessor implements SpanProcessor {
       return;
     }
 
-    if (this.queue.length > this.softMaxQueueSize) {
-      this.softLimitHitCount++;
-    }
+    if (!this.exporter) return;
 
-    if (!this.hasCapacity()) {
-      this.droppedCount++;
-      return;
-    }
-
-    this.queue.push(span.toJSON());
+    // Fire-and-forget: onEnd is synchronous by contract.
+    // Errors are captured in stats and optionally reported to stderr.
+    void this.exporter
+      .export([span.toJSON()])
+      .then(() => {
+        this.exportedCount++;
+      })
+      .catch((error: unknown) => {
+        this.failedExportCount++;
+        this.reportExportFailure(error);
+      });
   }
 
   snapshot(): ProcessorSnapshot {
@@ -107,74 +98,42 @@ export class InMemorySpanProcessor implements SpanProcessor {
       sampledCount: this.sampledCount,
       droppedCount: this.droppedCount,
       exportedCount: this.exportedCount,
-      currentQueueLength: this.queue.length,
-      maxQueueSize: this.maxQueueSize,
-      backPressureHitCount: this.backPressureHitCount,
-      evictedCount: this.evictedCount,
-      softLimitHitCount: this.softLimitHitCount,
       unsampledCount: this.unsampledCount,
+      failedExportCount: this.failedExportCount,
+      lastExportError: this.lastExportError,
+      lastExportErrorAt: this.lastExportErrorAt,
+      // these have no meaning in simple mode but ProcessorSnapshot requires them
+      currentQueueLength: 0,
+      maxQueueSize: 0,
+      backPressureHitCount: 0,
+      evictedCount: 0,
+      softLimitHitCount: 0,
     };
   }
 
   getFinishedSpans(limit = 100): TraceSnapshot[] {
-    return this.queue.slice(-limit);
+    return [];
   }
 
-  clear(): void {
-    this.queue = [];
-  }
-
-  async forceFlush(): Promise<void> {
-    if (!this.exporter) {
-      return;
-    }
-
-    const batch = [...this.queue];
-    if (batch.length === 0) {
-      return;
-    }
-
-    await this.exporter.export(batch);
-    this.exportedCount += batch.length;
-    this.queue = [];
-  }
+  async forceFlush(): Promise<void> {}
 
   async shutdown(): Promise<void> {
-    if (this.isShuttingDown) {
-      return;
-    }
-
+    if (this.isShuttingDown) return;
     this.isShuttingDown = true;
-    await withTimeout(
-      this.forceFlush(),
-      3000,
-      'Corelens trace shutdown flush timed out',
-    );
     await this.exporter?.shutdown?.();
   }
 
-  get finishedCount(): number {
-    return this.queue.length;
-  }
+  private reportExportFailure(error: unknown): void {
+    this.lastExportError =
+      error instanceof Error ? error.message : String(error);
 
-  private hasCapacity(): boolean {
-    if (this.queue.length < this.maxQueueSize) {
-      return true;
+    this.lastExportErrorAt = Date.now();
+
+    if (this.config.diagnostics?.warnOnExportFailure) {
+      process.stderr.write(
+        `[Corelens] Trace export failed: ${this.lastExportError}\n`,
+      );
     }
-
-    this.backPressureHitCount++;
-
-    if (this.fullQueuePolicy === 'drop-newest') {
-      return false;
-    }
-
-    if (this.fullQueuePolicy === 'drop-oldest') {
-      this.queue.shift();
-      this.evictedCount++;
-      return this.queue.length < this.maxQueueSize;
-    }
-
-    return false;
   }
 }
 
@@ -224,11 +183,7 @@ export class BatchSpanProcessor implements SpanProcessor {
   }
   onEnd(span: Span): void {
     this.endedCount++;
-    if (this.endedCount % 1000 === 0) {
-      console.log(
-        `[Corelens Debug] Span status: sampled=${span.sampled}, count=${this.endedCount}`,
-      );
-    }
+
     if (this.isShuttingDown) return;
 
     if (!span.sampled) {
@@ -279,7 +234,7 @@ export class BatchSpanProcessor implements SpanProcessor {
     };
   }
   getFinishedSpans(limit = 100): TraceSnapshot[] {
-    return this.queue.slice(-limit);
+    return [];
   }
 
   async shutdown(): Promise<void> {

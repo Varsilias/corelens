@@ -2,64 +2,65 @@ import { Module } from '../../core/config';
 import { ModuleContext } from '../../core/config';
 import { TraceContextStore, TraceIdGenerator, Tracer } from '../../core/traces';
 import {
-  CircuitBreakerExporter,
-  ConsoleExporter,
-  FileTraceExporter,
-  RetryingTraceExporter,
-} from '../../core/traces/exporters';
+  TraceConsoleFormatter,
+  TraceFileFormatter,
+  TraceOtlpFormatter,
+} from '../../core/traces/formatter';
 import {
   BatchSpanProcessor,
-  InMemorySpanProcessor,
+  SimpleSpanProcessor,
 } from '../../core/traces/processor';
-import { SpanProcessor, TraceExporter } from '../../core/traces/span';
+import {
+  SpanProcessor,
+  TraceExporter,
+  TraceSnapshot,
+} from '../../core/traces/span';
+import { CircuitBreakerExporter } from '../../exporters/circuit-breaker';
+import { ConsoleExporter } from '../../exporters/console';
+import { FileExporter } from '../../exporters/file';
+import { OtlpHttpExporter } from '../../exporters/otlp-http';
+import { RetryingTraceExporter } from '../../exporters/retry';
+import { Exporter } from '../../exporters/types';
 
 export class TracesModule implements Module {
   private contextStore: TraceContextStore;
   private tracer: Tracer;
   private generator: TraceIdGenerator;
   private processor: SpanProcessor;
-  private exporter: TraceExporter;
+  private exporter: Exporter<TraceSnapshot>;
 
   constructor(private ctx: ModuleContext) {
     const { config } = this.ctx;
     this.contextStore = new TraceContextStore();
     this.generator = new TraceIdGenerator();
 
-    // this.exporter = new ConsoleExporter();
-    // this.processor = new InMemorySpanProcessor(
-    //   {
-    //     fullQueuePolicy: config.traces.batch.fullQueuePolicy,
-    //     maxQueueSize: config.traces.batch.maxQueueSize,
-    //   },
-    //   this.exporter,
-    // );
+    const exportCfg = config.export;
+    const traceSignalCfg = config.export?.signals?.traces;
 
     const retryConfig = {
-      maxRetries: config.export.retry.maxRetries,
-      initialDelayMs: config.export.retry.initialDelayMs,
-      maxDelayMs: config.export.retry.maxDelayMs,
+      maxRetries:
+        traceSignalCfg?.retry?.maxRetries ?? exportCfg.retry.maxRetries,
+      initialDelayMs:
+        traceSignalCfg?.retry?.initialDelayMs ?? exportCfg.retry.initialDelayMs,
+      maxDelayMs:
+        traceSignalCfg?.retry?.maxDelayMs ?? exportCfg.retry.maxDelayMs,
     };
 
     const circuitConfig = {
-      threshold: config.export.circuitBreaker.failureThreshold,
-      resetTimeoutMs: config.export.circuitBreaker.resetTimeoutMs,
+      threshold:
+        traceSignalCfg?.circuitBreaker?.failureThreshold ??
+        exportCfg.circuitBreaker.failureThreshold,
+      resetTimeoutMs:
+        traceSignalCfg?.circuitBreaker?.resetTimeoutMs ??
+        exportCfg.circuitBreaker.resetTimeoutMs,
     };
 
     this.exporter = new CircuitBreakerExporter(
-      new RetryingTraceExporter(
-        new FileTraceExporter('trace.log'),
-        retryConfig,
-      ),
+      new RetryingTraceExporter(this.getSink(), retryConfig),
       circuitConfig,
     );
 
-    this.processor = new BatchSpanProcessor(this.exporter, {
-      fullQueuePolicy: config.export.batch.fullQueuePolicy,
-      maxExportBatchSize: config.export.batch.maxExportBatchSize,
-      maxQueueSize: config.export.batch.maxQueueSize,
-      scheduledDelayMs: config.export.batch.scheduledDelayMs,
-      shutdownTimeoutMs: 3000,
-    });
+    this.processor = this.getProcessor(this.exporter);
 
     this.tracer = new Tracer(
       this.contextStore,
@@ -85,8 +86,76 @@ export class TracesModule implements Module {
   }
 
   init(): void {}
+
   start(): void {}
+
   async stop(): Promise<void> {
     await this.processor.shutdown();
+  }
+
+  private getProcessor(exporter: Exporter<TraceSnapshot>) {
+    const config = this.ctx.config;
+    const exportCfg = config.export;
+    const traceSignalCfg = config.export?.signals?.traces;
+    const mode = traceSignalCfg?.mode ?? exportCfg.mode;
+
+    if (mode) {
+      return new SimpleSpanProcessor(
+        {
+          diagnostics: {
+            warnOnExportFailure: config.diagnostics.warnOnExportFailure,
+          },
+        },
+        exporter,
+      );
+    }
+
+    const batchCfg = {
+      fullQueuePolicy:
+        traceSignalCfg?.batch?.fullQueuePolicy ??
+        exportCfg.batch.fullQueuePolicy,
+      maxExportBatchSize:
+        traceSignalCfg?.batch?.maxExportBatchSize ??
+        exportCfg.batch.maxExportBatchSize,
+      maxQueueSize:
+        traceSignalCfg?.batch?.maxQueueSize ?? exportCfg.batch.maxQueueSize,
+      scheduledDelayMs:
+        traceSignalCfg?.batch?.scheduledDelayMs ??
+        exportCfg.batch.scheduledDelayMs,
+      shutdownTimeoutMs:
+        traceSignalCfg?.batch?.shutdownTimeoutMs ??
+        exportCfg.batch.shutdownTimeoutMs,
+    };
+    return new BatchSpanProcessor(this.exporter, batchCfg);
+  }
+
+  private getSink(): Exporter<TraceSnapshot> {
+    const config = this.ctx.config;
+    const exportDest = config.export.destination;
+    const traceSignalDest = config.export?.signals?.traces;
+    const destination = traceSignalDest?.destination ?? exportDest;
+    const sink = destination.type;
+
+    switch (sink) {
+      case 'console':
+        return new ConsoleExporter('traces', new TraceConsoleFormatter(), true);
+      case 'file':
+        return new FileExporter(destination.filePath, new TraceFileFormatter());
+      case 'otlp-http':
+        return new OtlpHttpExporter(
+          {
+            endpoint: destination.endpoint,
+            headers: destination.headers,
+            timeoutMs: destination.timeoutMs,
+          },
+          new TraceOtlpFormatter({
+            serviceName: config.serviceName,
+            version: '1.0.0',
+          }),
+        );
+
+      default:
+        throw new Error('Invalid destination type provided for traces');
+    }
   }
 }

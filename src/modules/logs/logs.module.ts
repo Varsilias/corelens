@@ -55,7 +55,7 @@ export class LogsModule implements Module {
     const time = event.timestamp;
     const level = event.level.toUpperCase().padEnd(5);
 
-    let base = `${color}[${time}] ${level}${reset}: ${event.message}`;
+    let base = `${color}[${time}] ${level}: ${event.message}${reset}`;
 
     if (event.context && Object.keys(event.context).length > 0) {
       base += `\n${JSON.stringify(event.context, null, 2)}`;

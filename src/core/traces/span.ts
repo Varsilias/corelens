@@ -46,8 +46,9 @@ export interface SpanProcessor {
 }
 
 export type SpanProcessorConfig = {
-  maxQueueSize: number;
-  fullQueuePolicy: FullQueuePolicy;
+  diagnostics?: {
+    warnOnExportFailure: boolean;
+  };
 };
 
 export type BatchSpanProcessorConfig = {

@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch src --watch ../../src --ext ts --exec ts-node --require tsconfig-paths/register src/index.ts",
+    "dev": "TS_NODE_SKIP_IGNORE=true nodemon --watch src --watch ../../src --ext ts --exec ts-node --require tsconfig-paths/register src/index.ts",
     "start": "nodemon --watch src --ext ts --exec 'ts-node' src/index.ts",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

@@ -34,6 +34,26 @@ export const lens = corelens({
       scheduledDelayMs: 2000,
       fullQueuePolicy: 'drop-newest',
     },
+    signals: {
+      logs: {
+        destination: {
+          type: 'console',
+          pretty: true,
+        },
+      },
+      metrics: {
+        destination: {
+          type: 'file',
+          filePath: 'metrics.prom',
+        },
+      },
+      traces: {
+        destination: {
+          type: 'file',
+          filePath: 'traces.log',
+        },
+      },
+    },
   },
   diagnostics: {
     warnOnConfigFallback: true,

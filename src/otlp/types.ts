@@ -1,8 +1,10 @@
-export type OTLPJSONRequestSchema = {
-  resourceSpans: OTLPResourceSpan[];
+export type OTLPSignalRequest = OTLPTraceSignal;
+
+export type OTLPTraceSignal = {
+  resourceSpans: OTLPTraceResource[];
 };
 
-export type OTLPResourceSpan = {
+export type OTLPTraceResource = {
   resource: {
     attributes: OTLPResourceAttribute[];
   };
