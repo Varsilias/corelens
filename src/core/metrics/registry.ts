@@ -338,7 +338,7 @@ export class Gauge {
           if (!current) {
             this.values.set(key, {
               labels,
-              value: amount,
+              value: -amount,
             });
             return;
           }
@@ -451,7 +451,7 @@ function serializeLabels(labels: Labels): string {
   let result = '';
   for (let i = 0; i < len; i++) {
     const key = keys[i];
-    result += key + '="' + labels[key] + '"';
+    result += key + '="' + escapeLabelValue(labels[key]) + '"';
     if (i < len - 1) {
       result += ',';
     }

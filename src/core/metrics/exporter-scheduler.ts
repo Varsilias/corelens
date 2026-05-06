@@ -2,6 +2,7 @@ import { MetricsRegistry, MetricsSnapshot } from './registry';
 import { Exporter } from '../../exporters/types';
 import { Processor } from '../traces/span';
 import { withTimeout } from '../../exporters/circuit-breaker';
+import { diagnostics } from '../diagnostics';
 
 type SchedulerConfig = {
   scheduledDelayMs: number;
@@ -18,6 +19,7 @@ export class MetricsExportScheduler implements Processor {
   private failedExportCount = 0;
   private lastExportError?: string;
   private lastExportErrorAt?: number;
+  private activeFlushController?: AbortController;
 
   constructor(
     private readonly registry: MetricsRegistry,
@@ -35,15 +37,23 @@ export class MetricsExportScheduler implements Processor {
 
   async flush(): Promise<void> {
     if (this.isShuttingDown) return;
-    await this.flushNow();
+    const controller = new AbortController();
+    this.activeFlushController = controller;
+    try {
+      await this.flushNow(controller.signal);
+    } finally {
+      if (this.activeFlushController === controller) {
+        this.activeFlushController = undefined;
+      }
+    }
   }
 
-  private async flushNow(): Promise<void> {
+  private async flushNow(signal?: AbortSignal): Promise<void> {
     const snapshot = this.registry.snapshot();
     if (snapshot.entries.length === 0) return;
 
     try {
-      await this.exporter.export([snapshot]);
+      await this.exporter.export([snapshot], signal);
       this.flushCount++;
     } catch (error) {
       this.reportFailure(error);
@@ -56,11 +66,14 @@ export class MetricsExportScheduler implements Processor {
     this.isShuttingDown = true;
 
     if (this.timer) clearInterval(this.timer);
+    this.activeFlushController?.abort();
+    const controller = new AbortController();
 
     await withTimeout(
-      this.flushNow(),
+      this.flushNow(controller.signal),
       this.config.shutdownTimeoutMs,
       '[Corelens] Metrics export scheduler shutdown flush timed out',
+      controller,
     );
 
     await this.exporter.shutdown?.();
@@ -82,7 +95,7 @@ export class MetricsExportScheduler implements Processor {
     this.lastExportErrorAt = Date.now();
 
     if (this.config.diagnostics?.warnOnExportFailure) {
-      process.stderr.write(
+      diagnostics.warn(
         `[Corelens] Metrics export failed: ${this.lastExportError}\n`,
       );
     }

@@ -30,10 +30,25 @@ export type PipelineStats = {
   softLimitHitCount: number;
 };
 
+export type TeePipelineStats = {
+  exportedCount: number;
+  failedExportCount: number;
+  droppedCount: number;
+  flushCount: number;
+  currentQueueLength: number;
+  lastExportError: string | undefined;
+  lastExportErrorAt: number | undefined;
+};
+
+export type LogsPipelineStats = {
+  primary: PipelineStats;
+  tee?: TeePipelineStats;
+};
+
 export interface IPipeline {
   handle(event: LogEvent): boolean;
   flushAll(): Promise<void>;
-  getStats(): PipelineStats;
+  getStats(): { primary: PipelineStats; tee?: TeePipelineStats };
 }
 
 export class LogsPipeline implements IPipeline {
@@ -114,21 +129,23 @@ export class LogsPipeline implements IPipeline {
     this.flush();
   }
 
-  getStats(): PipelineStats {
+  getStats(): LogsPipelineStats {
     return {
-      producedCount: this.producedCount,
-      flushedCount: this.flushedCount,
-      backPressureHitCount: this.backPressureHitCount,
-      drainCount: this.drainCount,
-      maxQueueLength: this.maxQueueLength,
-      currentQueueLength: this.queue.length,
-      isDraining: this.isDraining,
-      peakQueuedBytes: this.peakQueuedBytes,
-      queuedBytes: this.queuedBytes,
-      droppedCount: this.droppedCount,
-      acceptedCount: this.acceptedCount,
-      evictedCount: this.evictedCount,
-      softLimitHitCount: this.softLimitHitCount,
+      primary: {
+        producedCount: this.producedCount,
+        flushedCount: this.flushedCount,
+        backPressureHitCount: this.backPressureHitCount,
+        drainCount: this.drainCount,
+        maxQueueLength: this.maxQueueLength,
+        currentQueueLength: this.queue.length,
+        isDraining: this.isDraining,
+        peakQueuedBytes: this.peakQueuedBytes,
+        queuedBytes: this.queuedBytes,
+        droppedCount: this.droppedCount,
+        acceptedCount: this.acceptedCount,
+        evictedCount: this.evictedCount,
+        softLimitHitCount: this.softLimitHitCount,
+      },
     };
   }
 
@@ -210,21 +227,23 @@ export class NoopPipeline implements IPipeline {
   }
   async flushAll(): Promise<void> {}
 
-  getStats(): PipelineStats {
+  getStats(): LogsPipelineStats {
     return {
-      producedCount: 0,
-      flushedCount: 0,
-      backPressureHitCount: 0,
-      drainCount: 0,
-      maxQueueLength: 0,
-      currentQueueLength: 0,
-      isDraining: false,
-      droppedCount: 0,
-      queuedBytes: 0,
-      peakQueuedBytes: 0,
-      acceptedCount: 0,
-      evictedCount: 0,
-      softLimitHitCount: 0,
+      primary: {
+        producedCount: 0,
+        flushedCount: 0,
+        backPressureHitCount: 0,
+        drainCount: 0,
+        maxQueueLength: 0,
+        currentQueueLength: 0,
+        isDraining: false,
+        droppedCount: 0,
+        queuedBytes: 0,
+        peakQueuedBytes: 0,
+        acceptedCount: 0,
+        evictedCount: 0,
+        softLimitHitCount: 0,
+      },
     };
   }
 }

@@ -18,7 +18,9 @@ export class RetryingTraceExporter<
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        return await this.inner.export(spans);
+        if (signal?.aborted)
+          throw new DOMException('Export aborted', 'AbortError');
+        return await this.inner.export(spans, signal);
       } catch (error) {
         if (attempt === maxRetries) throw error;
         if (signal?.aborted)

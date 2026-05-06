@@ -9,12 +9,17 @@ type OtlpHttpTransportConfig = {
 export class OtlpHttpTransport {
   constructor(private readonly config: OtlpHttpTransportConfig) {}
 
-  async postJson(body: OTLPSignalRequest): Promise<void> {
+  async postJson(
+    body: OTLPSignalRequest,
+    signal?: AbortSignal,
+  ): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(
       () => controller.abort(),
       this.config.timeoutMs ?? 10_000,
     );
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
 
     try {
       const res = await fetch(this.config.endpoint, {
@@ -35,6 +40,7 @@ export class OtlpHttpTransport {
       }
     } finally {
       clearTimeout(timeout);
+      signal?.removeEventListener('abort', abort);
     }
   }
 }

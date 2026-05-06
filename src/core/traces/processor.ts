@@ -1,6 +1,7 @@
 import { withTimeout } from '../../exporters/circuit-breaker';
 import { Exporter } from '../../exporters/types';
 import { FullQueuePolicy } from '../config';
+import { diagnostics } from '../diagnostics';
 import {
   BatchSpanProcessorConfig,
   Span,
@@ -143,7 +144,7 @@ export class SimpleSpanProcessor implements SpanProcessor {
     // want exporter shutdown to proceed even if the flush times out.
     await this.forceFlush().catch((error: unknown) => {
       if (this.config.diagnostics?.warnOnExportFailure) {
-        process.stderr.write(
+        diagnostics.warn(
           `[Corelens] forceFlush timed out during shutdown: ${error instanceof Error ? error.message : String(error)}\n`,
         );
       }
@@ -159,7 +160,7 @@ export class SimpleSpanProcessor implements SpanProcessor {
     this.lastExportErrorAt = Date.now();
 
     if (this.config.diagnostics?.warnOnExportFailure) {
-      process.stderr.write(
+      diagnostics.warn(
         `[Corelens] Trace export failed: ${this.lastExportError}\n`,
       );
     }
@@ -188,6 +189,7 @@ export class BatchSpanProcessor implements SpanProcessor {
   private flushCount = 0;
   private lastExportError?: string;
   private lastExportErrorAt?: number;
+  private flushAbortController?: AbortController;
 
   constructor(
     private readonly exporter: TraceExporter,
@@ -269,12 +271,14 @@ export class BatchSpanProcessor implements SpanProcessor {
   async shutdown(): Promise<void> {
     this.isShuttingDown = true;
     if (this.timer) clearInterval(this.timer);
+    const controller = new AbortController();
 
     try {
       await withTimeout(
-        this.forceFlush(),
+        this.forceFlush(controller.signal),
         this.config.shutdownTimeoutMs ?? 3000,
         `[Corelens] trace shutdown flush timed out`,
+        controller,
       );
     } catch (error: any) {
       this.reportExportFailure(error);
@@ -287,19 +291,44 @@ export class BatchSpanProcessor implements SpanProcessor {
     }
   }
 
-  async forceFlush(): Promise<void> {
+  async forceFlush(signal?: AbortSignal): Promise<void> {
     if (this.flushPromise) {
+      if (signal) {
+        const abortActiveFlush = () => this.flushAbortController?.abort();
+        signal.addEventListener('abort', abortActiveFlush, { once: true });
+        void this.flushPromise
+          .finally(() =>
+            signal.removeEventListener('abort', abortActiveFlush),
+          )
+          .catch(() => {});
+      }
       return this.flushPromise;
     }
 
-    this.flushPromise = this.flushOnce().finally(() => {
+    const controller = new AbortController();
+    this.flushAbortController = controller;
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+
+    this.flushPromise = this.drainQueue(controller.signal).finally(() => {
+      signal?.removeEventListener('abort', abort);
+      this.flushAbortController = undefined;
       this.flushPromise = null;
     });
 
     return this.flushPromise;
   }
 
-  private async flushOnce(): Promise<void> {
+  private async drainQueue(signal?: AbortSignal): Promise<void> {
+    while (this.queue.length > 0) {
+      if (signal?.aborted) {
+        throw new DOMException('Trace flush aborted', 'AbortError');
+      }
+      await this.flushOnce(signal);
+    }
+  }
+
+  private async flushOnce(signal?: AbortSignal): Promise<void> {
     if (this.queue.length === 0) {
       return;
     }
@@ -307,7 +336,7 @@ export class BatchSpanProcessor implements SpanProcessor {
     const batch = this.queue.slice(0, this.config.maxExportBatchSize);
 
     try {
-      await this.exporter.export(batch);
+      await this.exporter.export(batch, signal);
 
       this.queue.splice(0, batch.length);
       this.exportedCount += batch.length;
@@ -328,7 +357,7 @@ export class BatchSpanProcessor implements SpanProcessor {
     this.lastExportErrorAt = Date.now();
 
     if (this.config.diagnostics?.warnOnExportFailure) {
-      process.stderr.write(
+      diagnostics.warn(
         `[Corelens] Trace export failed: ${this.lastExportError}\n`,
       );
     }

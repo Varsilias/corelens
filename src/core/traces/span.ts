@@ -83,7 +83,7 @@ export type TraceSnapshot = {
 };
 
 export interface TraceExporter {
-  export(spans: TraceSnapshot[]): Promise<void>;
+  export(spans: TraceSnapshot[], signal?: AbortSignal): Promise<void>;
   shutdown?(): Promise<void>;
 }
 

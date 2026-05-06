@@ -21,7 +21,7 @@ export class CircuitBreakerExporter<
     },
   ) {}
 
-  async export(spans: T[]): Promise<void> {
+  async export(spans: T[], signal?: AbortSignal): Promise<void> {
     if (this.state === CircuitState.OPEN) {
       if (Date.now() - this.lastFailureTime > this.config.resetTimeoutMs) {
         this.state = CircuitState.HALF_OPEN;
@@ -31,7 +31,7 @@ export class CircuitBreakerExporter<
     }
 
     try {
-      await this.inner.export(spans);
+      await this.inner.export(spans, signal);
       this.onSuccess();
     } catch (error) {
       this.onFailure();

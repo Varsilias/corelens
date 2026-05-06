@@ -23,10 +23,10 @@ export class OtlpHttpExporter<
       timeoutMs: config.timeoutMs,
     });
   }
-  async export(spans: T[]): Promise<void> {
+  async export(spans: T[], signal?: AbortSignal): Promise<void> {
     if (spans.length === 0) return;
 
-    await this.transport.postJson(this.formatter.format(spans));
+    await this.transport.postJson(this.formatter.format(spans), signal);
   }
   async shutdown?(): Promise<void> {}
 }

@@ -30,8 +30,8 @@ export const DEFAULT_HTTP_BUCKETS = [
 
 // drop-newest: preserve old buffered data, reject incoming pressure
 // drop-oldest: preserve freshest data
-// block: preserve data by applying backpressure to the producer
-export type FullQueuePolicy = 'drop-newest' | 'drop-oldest' | 'block';
+// future(block): preserve data by applying backpressure to the producer
+export type FullQueuePolicy = 'drop-newest' | 'drop-oldest';
 
 export type ExportSignal = 'logs' | 'metrics' | 'traces';
 

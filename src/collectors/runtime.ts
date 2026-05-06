@@ -46,7 +46,6 @@ export class RuntimeMetricsCollector {
     );
 
     this.histogram = monitorEventLoopDelay({ resolution: 10 });
-    this.histogram.enable();
 
     this.loopLag = this.registry.gauge(
       'node_event_loop_lag_seconds',
@@ -77,6 +76,7 @@ export class RuntimeMetricsCollector {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
+    this.histogram.disable();
   }
 
   private update() {
@@ -90,6 +90,7 @@ export class RuntimeMetricsCollector {
   }
 
   private collect() {
+    this.histogram.enable();
     const mem = process.memoryUsage();
 
     this.heapUsed.set(mem.heapUsed);

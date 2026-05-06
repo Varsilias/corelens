@@ -1,8 +1,12 @@
 import { LogEvent } from '.';
+import { diagnostics } from '../diagnostics';
 import { withTimeout } from '../../exporters/circuit-breaker';
 import { Exporter } from '../../exporters/types';
 import { FullQueuePolicy } from '../config';
-import { IPipeline, PipelineStats } from './pipeline';
+import {
+  IPipeline,
+  LogsPipelineStats,
+} from './pipeline';
 
 type TeePipelineConfig = {
   maxQueueSize: number;
@@ -27,6 +31,7 @@ export class TeePipeline implements IPipeline {
   private lastExportErrorAt?: number;
 
   private flushPromise: Promise<void> | null = null;
+  private flushAbortController?: AbortController;
 
   constructor(
     private readonly primary: IPipeline,
@@ -73,20 +78,24 @@ export class TeePipeline implements IPipeline {
       return this.flushPromise;
     }
 
-    this.flushPromise = this.flushOnce().finally(() => {
+    const controller = new AbortController();
+    this.flushAbortController = controller;
+
+    this.flushPromise = this.flushOnce(controller.signal).finally(() => {
+      this.flushAbortController = undefined;
       this.flushPromise = null;
     });
 
     return this.flushPromise;
   }
 
-  private async flushOnce(): Promise<void> {
+  private async flushOnce(signal?: AbortSignal): Promise<void> {
     if (this.queue.length === 0) return;
 
     const batch = this.queue.slice(0, this.config.maxExportBatchSize);
 
     try {
-      await this.secondary.export(batch);
+      await this.secondary.export(batch, signal);
       this.queue.splice(0, batch.length);
       this.exportedCount += batch.length;
       this.flushCount++;
@@ -122,10 +131,11 @@ export class TeePipeline implements IPipeline {
     const deadline = Date.now() + deadlineMs;
 
     while (this.queue.length > 0) {
-      if (Date.now() >= deadline) {
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) {
         const dropped = this.queue.length;
         this.droppedCount += dropped;
-        process.stderr.write(
+        diagnostics.warn(
           `[Corelens] Shutdown deadline exceeded — ${dropped} log event(s) discarded\n`,
         );
         break;
@@ -134,15 +144,37 @@ export class TeePipeline implements IPipeline {
       // Wait for any in-flight flush to settle before taking the next batch,
       // so we never have two concurrent exports racing on the same queue slice.
       if (this.flushPromise) {
+        this.flushAbortController?.abort();
         await this.flushPromise.catch(() => {});
       }
 
-      await this.flushOnce().catch((err) => this.reportFailure(err));
+      const controller = new AbortController();
+      try {
+        await withTimeout(
+          this.flushOnce(controller.signal),
+          remainingMs,
+          '[Corelens] Log export tee flush timed out',
+          controller,
+        );
+      } catch (err) {
+        this.reportFailure(err);
+        const dropped = this.queue.length;
+        this.droppedCount += dropped;
+        if (dropped > 0) {
+          diagnostics.warn(
+            `[Corelens] Log export failed during shutdown — ${dropped} log event(s) discarded\n`,
+          );
+        }
+        break;
+      }
     }
   }
 
-  getStats(): PipelineStats {
-    return this.primary.getStats();
+  getStats(): LogsPipelineStats {
+    return {
+      primary: this.primary.getStats().primary,
+      tee: this.snapshot(),
+    };
   }
 
   snapshot() {
@@ -163,7 +195,7 @@ export class TeePipeline implements IPipeline {
     this.lastExportErrorAt = Date.now();
 
     if (this.config.diagnostics.warnOnExportFailure) {
-      process.stderr.write(
+      diagnostics.warn(
         `[Corelens] Log export to secondary sink failed: ${this.lastExportError}\n`,
       );
     }
