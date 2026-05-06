@@ -7,14 +7,6 @@ import { prisma } from './config/prisma';
 
 const port = Number(process.env.PORT ?? 3000);
 
-process.on('uncaughtException', (err) => {
-  console.error('[CRASH]', err);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('[UNHANDLED REJECTION]', reason);
-});
-
 async function bootstrap() {
   await connectRedis();
 
