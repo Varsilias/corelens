@@ -1,11 +1,8 @@
 import { LogEvent } from '.';
 import {
   labelsToAttributes,
-  OTLPAttribute,
   OTLPLogRecord,
   OTLPLogsRequest,
-  OTLPMetric,
-  OTLPMetricsRequest,
   SEVERITY_NUMBER,
 } from '../../otlp/types';
 import { SignalFormatter } from '../config';
@@ -83,7 +80,7 @@ export class LogsOtlpFormatter implements SignalFormatter<
     private readonly config: { serviceName: string; version: string },
   ) {}
 
-  format(event: LogEvent): OTLPLogsRequest {
+  format(events: LogEvent[]): OTLPLogsRequest {
     return {
       resourceLogs: [
         {
@@ -98,7 +95,7 @@ export class LogsOtlpFormatter implements SignalFormatter<
           scopeLogs: [
             {
               scope: { name: 'corelens', version: this.config.version },
-              logRecords: [this.formatRecord(event)],
+              logRecords: events.map((e) => this.formatRecord(e)),
             },
           ],
         },
@@ -108,10 +105,11 @@ export class LogsOtlpFormatter implements SignalFormatter<
 
   private formatRecord(event: LogEvent): OTLPLogRecord {
     const timeNano = (BigInt(Date.now()) * 1_000_000n).toString();
+    const observedTimeNano = this.toUnixNano(event.timestamp);
 
     const record: OTLPLogRecord = {
       timeUnixNano: timeNano,
-      observedTimeUnixNano: timeNano,
+      observedTimeUnixNano: observedTimeNano,
       severityNumber: SEVERITY_NUMBER[event.level] ?? 9,
       severityText: event.level.toUpperCase(),
       body: { stringValue: event.message },
@@ -124,5 +122,12 @@ export class LogsOtlpFormatter implements SignalFormatter<
     if (event.spanId) record.spanId = event.spanId.toUpperCase();
 
     return record;
+  }
+
+  private toUnixNano(timestamp: number | string): string {
+    const epochMs =
+      typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
+
+    return (BigInt(epochMs) * 1_000_000n).toString();
   }
 }

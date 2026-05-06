@@ -1,4 +1,4 @@
-const baseUrl = process.env.BENCH_BASE_URL || 'http://localhost:3000';
+const baseUrl = process.env.BENCH_BASE_URL || 'http://localhost:4000';
 
 function intEnv(name, fallback) {
   const value = Number(process.env[name]);

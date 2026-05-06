@@ -5,7 +5,7 @@ import { closeRedis, connectRedis } from './config/redis';
 import { lens, logger } from './config/corelens';
 import { prisma } from './config/prisma';
 
-const port = Number(process.env.PORT ?? 3000);
+const port = Number(process.env.PORT ?? 4000);
 
 async function bootstrap() {
   await connectRedis();

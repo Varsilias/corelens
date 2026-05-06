@@ -150,7 +150,7 @@ export class TracesModule implements Module {
       case 'otlp-http':
         return new OtlpHttpExporter(
           {
-            endpoint: destination.endpoint,
+            endpoint: destination.resolvedEndpoints.traces,
             headers: destination.headers,
             timeoutMs: destination.timeoutMs,
           },

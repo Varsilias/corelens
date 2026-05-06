@@ -12,8 +12,8 @@ export const lens = corelens({
     enabled: true,
     mode: 'batch',
     destination: {
-      type: 'console',
-      pretty: false,
+      type: 'otlp-http',
+      endpoint: 'http://localhost:4318',
     },
 
     retry: {
@@ -36,27 +36,28 @@ export const lens = corelens({
     },
     signals: {
       logs: {
-        destination: {
-          type: 'file',
-          filePath: 'app.log',
-        },
+        enabled: true,
+        // destination: {
+        //   type: 'file',
+        //   filePath: 'app.log',
+        // },
       },
       metrics: {
-        enabled: false,
-        destination: {
-          type: 'file',
-          filePath: 'metrics.prom',
-        },
-        batch: {
-          scheduledDelayMs: 15_000, // every 15 sconds
-        },
+        enabled: true,
+        // destination: {
+        //   type: 'file',
+        //   filePath: 'metrics.prom',
+        // },
+        // batch: {
+        //   scheduledDelayMs: 15_000, // every 15 sconds
+        // },
       },
       traces: {
-        enabled: false,
-        destination: {
-          type: 'file',
-          filePath: 'traces.log',
-        },
+        enabled: true,
+        // destination: {
+        //   type: 'file',
+        //   filePath: 'traces.log',
+        // },
       },
     },
   },

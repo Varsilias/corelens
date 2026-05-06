@@ -12,6 +12,10 @@ import {
   NormalisedSignalExportConfig,
   NormalisedTracesConfig,
   DEFAULT_HTTP_BUCKETS,
+  ExportSignal,
+  OtlpHttpExportDestination,
+  NormalisedOtlpHttpExportDestination,
+  ExportSignalOverrides,
 } from '.';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -301,6 +305,62 @@ export function validateDestination(destination: ExportDestination): void {
   }
 }
 
+function validateOtlpEndpoint(endpoint: string, field: string): void {
+  let parsed: URL;
+
+  try {
+    parsed = new URL(endpoint);
+  } catch {
+    throw new Error(`[Corelens] ${field} must be a valid URL`);
+  }
+  const path = parsed.pathname;
+  if (path !== '/' && path !== '') {
+    throw new Error(
+      `[Corelens] ${field} should be a base URL ` +
+        `(e.g. "http://<host>:4318"), not a signal-specific path. ` +
+        `Signal paths (/v1/traces, /v1/metrics, /v1/logs) are appended automatically. ` +
+        `To use a custom path for a specific signal, use export.signals.<signal>.destination.endpoint instead.`,
+    );
+  }
+}
+
+function resolveEndpoint(base: string, signal: ExportSignal): string {
+  return `${base.replace(/\/$/, '')}/v1/${signal}`;
+}
+
+function normaliseOtlpDestination(
+  dest: OtlpHttpExportDestination,
+  signalExports?: ExportSignalOverrides,
+): NormalisedOtlpHttpExportDestination {
+  validateOtlpEndpoint(dest.endpoint, 'export.destination.endpoint'); // throws if it contains /v1/
+
+  const base = dest.endpoint.replace(/\/$/, '');
+  const traceDest = signalExports?.traces?.destination;
+  const metricsDest = signalExports?.metrics?.destination;
+  const logsDest = signalExports?.logs?.destination;
+
+  return {
+    type: 'otlp-http',
+    endpoint: base,
+    resolvedEndpoints: {
+      traces:
+        traceDest?.type === 'otlp-http'
+          ? (traceDest?.endpoint as string)
+          : resolveEndpoint(base, 'traces'),
+      metrics:
+        metricsDest?.type === 'otlp-http'
+          ? (metricsDest?.endpoint as string)
+          : resolveEndpoint(base, 'metrics'),
+      logs:
+        logsDest?.type === 'otlp-http'
+          ? (logsDest?.endpoint as string)
+          : resolveEndpoint(base, 'logs'),
+    },
+    headers: dest?.headers ?? {},
+    timeoutMs: normaliseOtlpTimeoutMs(dest.timeoutMs),
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Section normalisers
 // Each function takes the raw optional sub-config and returns a fully-resolved,
@@ -382,11 +442,7 @@ function normaliseExport(
 
   const destination = (
     cfg.destination.type === 'otlp-http'
-      ? {
-          ...cfg.destination,
-          headers: cfg.destination.headers ?? {},
-          timeoutMs: normaliseOtlpTimeoutMs(cfg.destination.timeoutMs),
-        }
+      ? normaliseOtlpDestination(cfg.destination, cfg.signals)
       : cfg.destination
   ) as NormalisedExportDestination;
 

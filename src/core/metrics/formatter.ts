@@ -35,8 +35,15 @@ export class MetricsOtlpFormatter implements SignalFormatter<
       version: string;
     },
   ) {}
-  format(snapshot: MetricsSnapshot): OTLPMetricsRequest {
+  format(snapshot: MetricsSnapshot[]): OTLPMetricsRequest {
     const nowNano = (BigInt(Date.now()) * 1_000_000n).toString();
+    const metrics: OTLPMetric[] = [];
+
+    snapshot.forEach((s) =>
+      s.entries.forEach((entry) => {
+        metrics.push(this.formatEntry(entry, nowNano));
+      }),
+    );
 
     return {
       resourceMetrics: [
@@ -52,9 +59,7 @@ export class MetricsOtlpFormatter implements SignalFormatter<
           scopeMetrics: [
             {
               scope: { name: 'corelens', version: this.config.version },
-              metrics: snapshot.entries.map((entry) =>
-                this.formatEntry(entry, nowNano),
-              ),
+              metrics,
             },
           ],
         },

@@ -145,7 +145,7 @@ export class LogsModule implements Module {
       case 'otlp-http':
         return new OtlpHttpExporter(
           {
-            endpoint: destination.endpoint,
+            endpoint: destination.resolvedEndpoints.logs,
             headers: destination.headers,
             timeoutMs: destination.timeoutMs,
           },

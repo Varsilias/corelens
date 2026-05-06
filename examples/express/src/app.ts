@@ -26,7 +26,7 @@ export function buildApp() {
     logger.info('Request processed', {
       method: _req.method,
       path: _req.path,
-      status: res.status,
+      status: res.statusCode,
       duration: `${duration}ms`,
     });
     next();

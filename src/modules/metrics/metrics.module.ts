@@ -131,7 +131,7 @@ export class MetricsModule implements Module {
       case 'otlp-http':
         return new OtlpHttpExporter(
           {
-            endpoint: destination.endpoint,
+            endpoint: destination.resolvedEndpoints.metrics,
             headers: destination.headers,
             timeoutMs: destination.timeoutMs,
           },

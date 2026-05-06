@@ -57,7 +57,7 @@ export type FileExportDestination = {
 
 export type OtlpHttpExportDestination = {
   type: 'otlp-http';
-  endpoint: string;
+  endpoint: string; // base URL only e.g: "http://otel-collector:4318"
   headers?: Record<string, string>;
   timeoutMs?: number;
 };
@@ -212,7 +212,13 @@ export type NormalisedFileExportDestination = {
 
 export type NormalisedOtlpHttpExportDestination = {
   type: 'otlp-http';
+  // Base URL is stored for reference but modules use resolvedEndpoints
   endpoint: string;
+  resolvedEndpoints: {
+    traces: string;
+    metrics: string;
+    logs: string;
+  };
   headers: Record<string, string>;
   timeoutMs: number;
 };
