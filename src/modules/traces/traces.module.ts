@@ -10,11 +10,7 @@ import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
 } from '../../core/traces/processor';
-import {
-  SpanProcessor,
-  TraceExporter,
-  TraceSnapshot,
-} from '../../core/traces/span';
+import { SpanProcessor, TraceSnapshot } from '../../core/traces/span';
 import { CircuitBreakerExporter } from '../../exporters/circuit-breaker';
 import { ConsoleExporter } from '../../exporters/console';
 import { FileExporter } from '../../exporters/file';
@@ -100,7 +96,7 @@ export class TracesModule implements Module {
     const traceSignalCfg = config.export?.signals?.traces;
     const mode = traceSignalCfg?.mode ?? exportCfg.mode;
 
-    if (mode) {
+    if (mode === 'simple') {
       return new SimpleSpanProcessor(
         {
           diagnostics: {

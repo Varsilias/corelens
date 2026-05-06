@@ -35,12 +35,20 @@ export class MetricsExportScheduler implements Processor {
 
   async flush(): Promise<void> {
     if (this.isShuttingDown) return;
+    await this.flushNow();
+  }
 
+  private async flushNow(): Promise<void> {
     const snapshot = this.registry.snapshot();
     if (snapshot.entries.length === 0) return;
 
-    await this.exporter.export([snapshot]);
-    this.flushCount++;
+    try {
+      await this.exporter.export([snapshot]);
+      this.flushCount++;
+    } catch (error) {
+      this.reportFailure(error);
+      throw error;
+    }
   }
 
   async shutdown(): Promise<void> {
@@ -50,7 +58,7 @@ export class MetricsExportScheduler implements Processor {
     if (this.timer) clearInterval(this.timer);
 
     await withTimeout(
-      this.flush(),
+      this.flushNow(),
       this.config.shutdownTimeoutMs,
       '[Corelens] Metrics export scheduler shutdown flush timed out',
     );

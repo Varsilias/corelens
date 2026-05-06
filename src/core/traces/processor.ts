@@ -39,6 +39,8 @@ export class SimpleSpanProcessor implements SpanProcessor {
   private lastExportErrorAt?: number;
 
   private isShuttingDown = false;
+  // Track every in-flight export promise
+  private pendingExports = new Set<Promise<void>>();
 
   constructor(
     public config: SpanProcessorConfig,
@@ -81,7 +83,7 @@ export class SimpleSpanProcessor implements SpanProcessor {
 
     // Fire-and-forget: onEnd is synchronous by contract.
     // Errors are captured in stats and optionally reported to stderr.
-    void this.exporter
+    const exportPromise = this.exporter
       .export([span.toJSON()])
       .then(() => {
         this.exportedCount++;
@@ -89,7 +91,12 @@ export class SimpleSpanProcessor implements SpanProcessor {
       .catch((error: unknown) => {
         this.failedExportCount++;
         this.reportExportFailure(error);
+      })
+      .finally(() => {
+        this.pendingExports.delete(exportPromise);
       });
+
+    this.pendingExports.add(exportPromise);
   }
 
   snapshot(): ProcessorSnapshot {
@@ -116,11 +123,32 @@ export class SimpleSpanProcessor implements SpanProcessor {
     return [];
   }
 
-  async forceFlush(): Promise<void> {}
+  async forceFlush(timeoutMs = 5000): Promise<void> {
+    if (this.pendingExports.size === 0) return;
+    const drain = Promise.allSettled(this.pendingExports);
+
+    await withTimeout(
+      drain,
+      timeoutMs,
+      `forceFlush timed out after ${timeoutMs}ms`,
+    );
+  }
 
   async shutdown(): Promise<void> {
     if (this.isShuttingDown) return;
     this.isShuttingDown = true;
+
+    // Drain in-flight exports before tearing down the exporter.
+    // forceFlush errors are intentionally swallowed here — we still
+    // want exporter shutdown to proceed even if the flush times out.
+    await this.forceFlush().catch((error: unknown) => {
+      if (this.config.diagnostics?.warnOnExportFailure) {
+        process.stderr.write(
+          `[Corelens] forceFlush timed out during shutdown: ${error instanceof Error ? error.message : String(error)}\n`,
+        );
+      }
+    });
+
     await this.exporter?.shutdown?.();
   }
 

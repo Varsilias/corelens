@@ -141,8 +141,18 @@ class Corelens {
   }
 
   private attachProcessHandlers() {
-    const handler = async () => {
-      await this.shutdown();
+    let shutdownInitiated = false;
+    const handler = async (signal: NodeJS.Signals) => {
+      if (shutdownInitiated) return;
+      shutdownInitiated = true;
+
+      process.off('SIGINT', handler);
+      process.off('SIGTERM', handler);
+      try {
+        await this.shutdown();
+      } finally {
+        process.kill(process.pid, signal);
+      }
     };
 
     process.on('SIGINT', handler);

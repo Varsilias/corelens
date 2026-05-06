@@ -101,21 +101,43 @@ export class TeePipeline implements IPipeline {
     this.isShuttingDown = true;
     if (this.timer) clearInterval(this.timer);
 
+    this.flushPromise = this.drainQueue(this.config.shutdownTimeoutMs).finally(
+      () => {
+        this.flushPromise = null;
+      },
+    );
+
     // Drain stdout first, then attempt final export flush concurrently.
     // allSettled ensures a secondary failure never blocks stdout from draining.
-    await Promise.allSettled([
-      this.primary.flushAll(),
-      withTimeout(
-        this.forceFlush(),
-        this.config.shutdownTimeoutMs,
-        '[Corelens] Log export tee flush timed out',
-      ).catch((err) => this.reportFailure(err)),
-    ]);
+    await Promise.allSettled([this.primary.flushAll(), this.flushPromise]);
 
     try {
       await this.secondary.shutdown?.();
     } catch (error) {
       this.reportFailure(error);
+    }
+  }
+
+  private async drainQueue(deadlineMs: number): Promise<void> {
+    const deadline = Date.now() + deadlineMs;
+
+    while (this.queue.length > 0) {
+      if (Date.now() >= deadline) {
+        const dropped = this.queue.length;
+        this.droppedCount += dropped;
+        process.stderr.write(
+          `[Corelens] Shutdown deadline exceeded — ${dropped} log event(s) discarded\n`,
+        );
+        break;
+      }
+
+      // Wait for any in-flight flush to settle before taking the next batch,
+      // so we never have two concurrent exports racing on the same queue slice.
+      if (this.flushPromise) {
+        await this.flushPromise.catch(() => {});
+      }
+
+      await this.flushOnce().catch((err) => this.reportFailure(err));
     }
   }
 

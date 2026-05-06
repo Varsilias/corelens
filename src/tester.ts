@@ -168,25 +168,109 @@ import { corelens } from './core/orchestrator';
 
 // stressTestInternal();
 
-async function traceTest() {
-  const lens = corelens({
-    serviceName: 'trace-test',
-    logs: { enabled: true, enrichWithTraceContext: true },
-    traces: { enabled: true },
-  });
+// async function traceTest() {
+//   const lens = corelens({
+//     serviceName: 'trace-test',
+//     logs: { enabled: true, enrichWithTraceContext: true },
+//     traces: { enabled: true },
+//   });
 
-  const logger = lens.logger;
-  const tracer = lens.tracer;
+//   const logger = lens.logger;
+//   const tracer = lens.tracer;
 
-  const iterations = 10;
+//   const iterations = 10;
 
-  for (let i = 0; i < iterations; i++) {
-    tracer.withSpan('root', () => {
-      logger.info('inside trace', { index: i });
-    });
-  }
+//   for (let i = 0; i < iterations; i++) {
+//     tracer.withSpan('root', () => {
+//       logger.info('inside trace', { index: i });
+//     });
+//   }
 
-  console.log(lens.getStats());
-}
+//   console.log(lens.getStats());
+// }
 
-traceTest();
+// traceTest();
+
+// corelens({
+//   serviceName: 'repro',
+//   lifecycle: { handleProcessSignals: true },
+//   logs: { enabled: false },
+//   metrics: { enabled: false },
+//   traces: { enabled: false },
+//   export: {
+//     enabled: false,
+//     destination: { type: 'console' },
+//   },
+// });
+
+// setInterval(() => {
+//   console.log('still alive');
+// }, 1000);
+
+// import { TeePipeline } from './core/logger/tee-pipeline';
+// import { NoopPipeline } from './core/logger/pipeline';
+
+// async function main() {
+//   const exported: unknown[] = [];
+
+//   const tee = new TeePipeline(
+//     new NoopPipeline(),
+//     {
+//       async export(records) {
+//         exported.push(...records);
+//       },
+//     },
+//     {
+//       maxQueueSize: 10,
+//       maxExportBatchSize: 2,
+//       scheduledDelayMs: 60_000,
+//       shutdownTimeoutMs: 5_000,
+//       fullQueuePolicy: 'drop-newest',
+//       diagnostics: { warnOnExportFailure: false },
+//     },
+//   );
+
+//   for (let i = 0; i < 5; i++) {
+//     tee.handle({
+//       level: 'info',
+//       message: `log-${i}`,
+//       serviceName: 'repro',
+//       timestamp: Date.now(),
+//     });
+//   }
+
+//   await tee.flushAll();
+
+//   console.log(exported.length); // 2, not 5
+// }
+
+// main();
+
+// import { MetricsRegistry } from './core/metrics/registry';
+// import { MetricsExportScheduler } from './core/metrics/exporter-scheduler';
+
+// async function main() {
+//   let exports = 0;
+
+//   const registry = new MetricsRegistry({ maxSeriesPerMetric: 100 });
+//   registry.counter('jobs_total', 'jobs').inc(1);
+
+//   const scheduler = new MetricsExportScheduler(
+//     registry,
+//     {
+//       async export() {
+//         exports++;
+//       },
+//     },
+//     {
+//       scheduledDelayMs: 60_000,
+//       shutdownTimeoutMs: 5_000,
+//     },
+//   );
+
+//   await scheduler.shutdown();
+
+//   console.log(exports); // 0, expected 1
+// }
+
+// main();
