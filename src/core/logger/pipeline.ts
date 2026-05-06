@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream';
-import { LogEvent } from '../../modules';
-import { FullQueuePolicy } from '../config';
+import { FullQueuePolicy, SignalFormatter } from '../config';
+import { LogEvent } from '.';
 
 type QueueItem = {
   event: LogEvent;
@@ -11,10 +11,10 @@ type PipelineConfig = {
   writer: Writable;
   maxQueueBytes: number;
   fullQueuePolicy: FullQueuePolicy;
-  format: (event: LogEvent) => string;
+  formatter: SignalFormatter<LogEvent, string>;
 };
 
-type PipelineStats = {
+export type PipelineStats = {
   producedCount: number;
   flushedCount: number;
   backPressureHitCount: number;
@@ -33,6 +33,7 @@ type PipelineStats = {
 export interface IPipeline {
   handle(event: LogEvent): boolean;
   flushAll(): Promise<void>;
+  getStats(): PipelineStats;
 }
 
 export class LogsPipeline implements IPipeline {
@@ -148,7 +149,7 @@ export class LogsPipeline implements IPipeline {
 
     while (this.queue.length > 0) {
       const chunk = this.queue[0];
-      const payload = this.config.format(chunk.event) + '\n';
+      const payload = this.config.formatter.format(chunk.event) + '\n';
 
       const ok = this.config.writer.write(payload);
 
@@ -207,4 +208,22 @@ export class NoopPipeline implements IPipeline {
     return true;
   }
   async flushAll(): Promise<void> {}
+
+  getStats(): PipelineStats {
+    return {
+      producedCount: 0,
+      flushedCount: 0,
+      backPressureHitCount: 0,
+      drainCount: 0,
+      maxQueueLength: 0,
+      currentQueueLength: 0,
+      isDraining: false,
+      droppedCount: 0,
+      queuedBytes: 0,
+      peakQueuedBytes: 0,
+      acceptedCount: 0,
+      evictedCount: 0,
+      softLimitHitCount: 0,
+    };
+  }
 }

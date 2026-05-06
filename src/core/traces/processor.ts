@@ -1,3 +1,4 @@
+import { withTimeout } from '../../exporters/circuit-breaker';
 import { Exporter } from '../../exporters/types';
 import { FullQueuePolicy } from '../config';
 import {
@@ -324,17 +325,4 @@ export class BatchSpanProcessor implements SpanProcessor {
 
     return false;
   }
-}
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  message: string,
-): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(message)), ms),
-    ),
-  ]);
 }

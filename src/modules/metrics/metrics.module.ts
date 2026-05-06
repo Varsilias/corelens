@@ -141,7 +141,7 @@ export class MetricsModule implements Module {
           }),
         );
       default:
-        throw new Error('Invalid destination type provided for metrics');
+        return new NoopExporter();
     }
   }
 }

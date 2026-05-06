@@ -1,4 +1,5 @@
 import {
+  labelsToAttributes,
   OTLPAttribute,
   OTLPSignalRequest,
   OTLPSpan,
@@ -77,7 +78,7 @@ export class TraceOtlpFormatter implements SignalFormatter<
       status: {
         code: span.status === 'ok' ? 1 : span.status === 'error' ? 2 : 0,
       },
-      attributes: this.formatAttributes(span.attributes),
+      attributes: labelsToAttributes(span.attributes),
       events: this.formatEvent(span.events),
     };
   }
@@ -88,31 +89,10 @@ export class TraceOtlpFormatter implements SignalFormatter<
       result.push({
         name: e.name,
         timeUnixNano: (e.timeUnixNano * 1_000_000).toString(),
-        attributes: this.formatAttributes(e.attributes),
+        attributes: labelsToAttributes(e.attributes),
       });
     }
 
     return result;
-  }
-
-  private formatAttributes(attrs: SpanAttribute): OTLPAttribute[] {
-    const result: OTLPAttribute[] = [];
-    for (const key in attrs) {
-      if (key === 'service.name') continue; // already hoisted to resource, no need to repeat
-      result.push({ key, value: this.formatValue(attrs[key]) });
-    }
-    return result;
-  }
-
-  private formatValue(value: unknown) {
-    if (typeof value === 'string') return { stringValue: value };
-    if (typeof value === 'boolean') return { boolValue: value };
-    if (typeof value === 'number') {
-      return Number.isInteger(value)
-        ? { intValue: value.toString() }
-        : { doubleValue: value };
-    }
-
-    return { stringValue: String(value) };
   }
 }

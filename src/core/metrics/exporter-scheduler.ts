@@ -1,6 +1,7 @@
 import { MetricsRegistry, MetricsSnapshot } from './registry';
 import { Exporter } from '../../exporters/types';
 import { Processor } from '../traces/span';
+import { withTimeout } from '../../exporters/circuit-breaker';
 
 type SchedulerConfig = {
   scheduledDelayMs: number;
@@ -78,17 +79,4 @@ export class MetricsExportScheduler implements Processor {
       );
     }
   }
-}
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  message: string,
-): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(message)), ms),
-    ),
-  ]);
 }

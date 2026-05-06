@@ -161,7 +161,7 @@ export class TracesModule implements Module {
         );
 
       default:
-        throw new Error('Invalid destination type provided for traces');
+        return new NoopExporter();
     }
   }
 }

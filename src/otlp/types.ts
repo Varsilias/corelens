@@ -1,5 +1,11 @@
-export type OTLPSignalRequest = OTLPTraceRequest | OTLPMetricsRequest;
+export type OTLPSignalRequest =
+  | OTLPTraceRequest
+  | OTLPMetricsRequest
+  | OTLPLogsRequest;
 
+// ===========================================
+//            Traces
+// ===========================================
 export type OTLPTraceRequest = {
   resourceSpans: OTLPTraceResource[];
 };
@@ -102,11 +108,67 @@ export type OTLPHistogram = {
   aggregationTemporality: number;
 };
 
+// ===========================================
+//            Logs
+// ===========================================
+
+// OTLP severity numbers per the spec:
+// https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber
+export const SEVERITY_NUMBER: Record<string, number> = {
+  debug: 5,
+  info: 9,
+  warn: 13,
+  error: 17,
+};
+
+export type OTLPLogsRequest = {
+  resourceLogs: OTLPResourceLogs[];
+};
+
+export type OTLPResourceLogs = {
+  resource: { attributes: OTLPAttribute[] };
+  scopeLogs: OTLPScopeLogs[];
+};
+
+export type OTLPScopeLogs = {
+  scope: { name: string; version: string };
+  logRecords: OTLPLogRecord[];
+};
+
+export type OTLPLogRecord = {
+  timeUnixNano: string;
+  observedTimeUnixNano: string;
+  severityNumber: number;
+  severityText: string;
+  body: { stringValue: string };
+  attributes: OTLPAttribute[];
+  traceId?: string;
+  spanId?: string;
+};
+
 export function labelsToAttributes(
-  labels: Record<string, string>,
+  labels:
+    | Record<string, string>
+    | { [x: string]: string | number | boolean }
+    | undefined,
 ): OTLPAttribute[] {
+  if (!labels) {
+    return [];
+  }
   return Object.entries(labels).map(([key, value]) => ({
     key,
-    value: { stringValue: value },
+    value: formatValue(value),
   }));
+}
+
+export function formatValue(value: unknown) {
+  if (typeof value === 'string') return { stringValue: value };
+  if (typeof value === 'boolean') return { boolValue: value };
+  if (typeof value === 'number') {
+    return Number.isInteger(value)
+      ? { intValue: value.toString() }
+      : { doubleValue: value };
+  }
+
+  return { stringValue: String(value) };
 }

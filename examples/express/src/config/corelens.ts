@@ -37,20 +37,22 @@ export const lens = corelens({
     signals: {
       logs: {
         destination: {
-          type: 'console',
-          pretty: true,
+          type: 'file',
+          filePath: 'app.log',
         },
       },
       metrics: {
+        enabled: false,
         destination: {
           type: 'file',
           filePath: 'metrics.prom',
         },
-        // batch: {
-        //   scheduledDelayMs: 15_000, // every 15 sconds
-        // },
+        batch: {
+          scheduledDelayMs: 15_000, // every 15 sconds
+        },
       },
       traces: {
+        enabled: false,
         destination: {
           type: 'file',
           filePath: 'traces.log',

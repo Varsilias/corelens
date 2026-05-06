@@ -1,7 +1,16 @@
-import { LogEvent } from '../../modules';
 import { NormalisedConfig } from '../config';
 import { ContextProvider } from '../traces';
 import { IPipeline } from './pipeline';
+
+export type LogEvent = {
+  level: string;
+  message: string;
+  serviceName: string;
+  timestamp: number | string;
+  context?: Record<string, any>;
+  traceId?: string;
+  spanId?: string;
+};
 
 export type LogLevel = 'info' | 'error' | 'debug' | 'warn';
 
