@@ -18,6 +18,7 @@ import {
 import { CircuitBreakerExporter } from '../../exporters/circuit-breaker';
 import { ConsoleExporter } from '../../exporters/console';
 import { FileExporter } from '../../exporters/file';
+import { NoopExporter } from '../../exporters/noop';
 import { OtlpHttpExporter } from '../../exporters/otlp-http';
 import { RetryingTraceExporter } from '../../exporters/retry';
 import { Exporter } from '../../exporters/types';
@@ -131,9 +132,14 @@ export class TracesModule implements Module {
 
   private getSink(): Exporter<TraceSnapshot> {
     const config = this.ctx.config;
-    const exportDest = config.export.destination;
-    const traceSignalDest = config.export?.signals?.traces;
-    const destination = traceSignalDest?.destination ?? exportDest;
+    const exportCfg = config.export;
+    const traceSignalCfg = config.export?.signals?.traces;
+
+    // Export is disabled at the global or signal level — swallow everything silently.
+    if (!exportCfg.enabled || !(traceSignalCfg?.enabled ?? true)) {
+      return new NoopExporter();
+    }
+    const destination = traceSignalCfg?.destination ?? exportCfg.destination;
     const sink = destination.type;
 
     switch (sink) {

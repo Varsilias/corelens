@@ -1,17 +1,15 @@
-export type OTLPSignalRequest = OTLPTraceSignal;
+export type OTLPSignalRequest = OTLPTraceRequest | OTLPMetricsRequest;
 
-export type OTLPTraceSignal = {
+export type OTLPTraceRequest = {
   resourceSpans: OTLPTraceResource[];
 };
 
 export type OTLPTraceResource = {
-  resource: {
-    attributes: OTLPResourceAttribute[];
-  };
-  scopeSpans: OTLPScopeScan[];
+  resource: { attributes: OTLPAttribute[] };
+  scopeSpans: OTLPScopeSpans[];
 };
 
-export type OTLPResourceAttribute = {
+export type OTLPAttribute = {
   key: string;
   value:
     | { stringValue: string }
@@ -20,7 +18,7 @@ export type OTLPResourceAttribute = {
     | { doubleValue: number };
 };
 
-export type OTLPScopeScan = {
+export type OTLPScopeSpans = {
   scope: OTLPScope;
   spans: OTLPSpan[];
 };
@@ -28,13 +26,13 @@ export type OTLPScopeScan = {
 export type OTLPScope = {
   name: string;
   version: string;
-  attributes?: OTLPResourceAttribute[];
+  attributes?: OTLPAttribute[];
 };
 
 export type OTLPSpanEvent = {
   timeUnixNano: string;
   name: string;
-  attributes: OTLPResourceAttribute[];
+  attributes: OTLPAttribute[];
 };
 
 export type OTLPSpan = {
@@ -50,5 +48,65 @@ export type OTLPSpan = {
     message?: string;
   };
   events: OTLPSpanEvent[];
-  attributes: OTLPResourceAttribute[];
+  attributes: OTLPAttribute[];
 };
+
+// ===========================================
+//            Metrics
+// ===========================================
+
+export type OTLPMetricsRequest = {
+  resourceMetrics: OTLPResourceMetrics[];
+};
+
+export type OTLPResourceMetrics = {
+  resource: { attributes: OTLPAttribute[] };
+  scopeMetrics: OTLPScopeMetrics[];
+};
+
+export type OTLPScopeMetrics = {
+  scope: { name: string; version: string };
+  metrics: OTLPMetric[];
+};
+
+export type OTLPMetric = {
+  name: string;
+  description: string;
+  unit: string;
+  sum?: OTLPSum;
+  gauge?: OTLPGauge;
+  histogram?: OTLPHistogram;
+};
+
+export type OTLPNumberDataPoint = {
+  attributes: OTLPAttribute[];
+  asDouble: number;
+  timeUnixNano: string;
+};
+export type OTLPSum = {
+  dataPoints: OTLPNumberDataPoint[];
+  isMonotonic: boolean;
+  aggregationTemporality: number;
+};
+export type OTLPGauge = { dataPoints: OTLPNumberDataPoint[] };
+export type OTLPHistogramDataPoint = {
+  attributes: OTLPAttribute[];
+  timeUnixNano: string;
+  count: string;
+  sum: number;
+  bucketCounts: string[];
+  explicitBounds: number[];
+};
+export type OTLPHistogram = {
+  dataPoints: OTLPHistogramDataPoint[];
+  aggregationTemporality: number;
+};
+
+export function labelsToAttributes(
+  labels: Record<string, string>,
+): OTLPAttribute[] {
+  return Object.entries(labels).map(([key, value]) => ({
+    key,
+    value: { stringValue: value },
+  }));
+}

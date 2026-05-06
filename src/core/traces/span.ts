@@ -36,12 +36,14 @@ export type StartSpanOptions = {
   parentContext?: TraceContext;
 };
 
-export interface SpanProcessor {
+export interface Processor {
   onStart?(span: Span): void;
-  onEnd(span: Span): void;
   shutdown(): Promise<void>;
-  forceFlush(): Promise<void>;
   snapshot(): Record<string, any>;
+}
+export interface SpanProcessor extends Processor {
+  forceFlush(): Promise<void>;
+  onEnd(span: Span): void;
   getFinishedSpans(limit: number): TraceSnapshot[];
 }
 

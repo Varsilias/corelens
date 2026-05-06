@@ -46,6 +46,9 @@ export const lens = corelens({
           type: 'file',
           filePath: 'metrics.prom',
         },
+        // batch: {
+        //   scheduledDelayMs: 15_000, // every 15 sconds
+        // },
       },
       traces: {
         destination: {

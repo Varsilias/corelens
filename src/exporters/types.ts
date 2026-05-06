@@ -1,4 +1,4 @@
 export interface Exporter<T> {
-  export(spans: T[]): Promise<void>;
+  export(records: T[]): Promise<void>;
   shutdown?(): Promise<void>;
 }

@@ -1,5 +1,5 @@
 import {
-  OTLPResourceAttribute,
+  OTLPAttribute,
   OTLPSignalRequest,
   OTLPSpan,
   OTLPSpanEvent,
@@ -95,8 +95,8 @@ export class TraceOtlpFormatter implements SignalFormatter<
     return result;
   }
 
-  private formatAttributes(attrs: SpanAttribute): OTLPResourceAttribute[] {
-    const result: OTLPResourceAttribute[] = [];
+  private formatAttributes(attrs: SpanAttribute): OTLPAttribute[] {
+    const result: OTLPAttribute[] = [];
     for (const key in attrs) {
       if (key === 'service.name') continue; // already hoisted to resource, no need to repeat
       result.push({ key, value: this.formatValue(attrs[key]) });
