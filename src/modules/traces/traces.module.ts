@@ -11,12 +11,11 @@ import {
   SimpleSpanProcessor,
 } from '../../core/traces/processor';
 import { SpanProcessor, TraceSnapshot } from '../../core/traces/span';
-import { CircuitBreakerExporter } from '../../exporters/circuit-breaker';
+import { ExporterBuilder } from '../../exporters/builder';
 import { ConsoleExporter } from '../../exporters/console';
 import { FileExporter } from '../../exporters/file';
 import { NoopExporter } from '../../exporters/noop';
 import { OtlpHttpExporter } from '../../exporters/otlp-http';
-import { RetryingTraceExporter } from '../../exporters/retry';
 import { Exporter } from '../../exporters/types';
 
 export class TracesModule implements Module {
@@ -31,31 +30,7 @@ export class TracesModule implements Module {
     this.contextStore = new TraceContextStore();
     this.generator = new TraceIdGenerator();
 
-    const exportCfg = config.export;
-    const traceSignalCfg = config.export?.signals?.traces;
-
-    const retryConfig = {
-      maxRetries:
-        traceSignalCfg?.retry?.maxRetries ?? exportCfg.retry.maxRetries,
-      initialDelayMs:
-        traceSignalCfg?.retry?.initialDelayMs ?? exportCfg.retry.initialDelayMs,
-      maxDelayMs:
-        traceSignalCfg?.retry?.maxDelayMs ?? exportCfg.retry.maxDelayMs,
-    };
-
-    const circuitConfig = {
-      threshold:
-        traceSignalCfg?.circuitBreaker?.failureThreshold ??
-        exportCfg.circuitBreaker.failureThreshold,
-      resetTimeoutMs:
-        traceSignalCfg?.circuitBreaker?.resetTimeoutMs ??
-        exportCfg.circuitBreaker.resetTimeoutMs,
-    };
-
-    this.exporter = new CircuitBreakerExporter(
-      new RetryingTraceExporter(this.getSink(), retryConfig),
-      circuitConfig,
-    );
+    this.exporter = this.buildExporter();
 
     this.processor = this.getProcessor(this.exporter);
 
@@ -88,6 +63,22 @@ export class TracesModule implements Module {
 
   async stop(): Promise<void> {
     await this.processor.shutdown();
+  }
+
+  private buildExporter(): Exporter<TraceSnapshot> {
+    const { config } = this.ctx;
+    const exportCfg = config.export;
+    const traceSignalCfg = config.export?.signals?.traces;
+    // Wrap with retry + circuit breaker
+    const retryCfg = traceSignalCfg?.retry ?? exportCfg.retry;
+    const circuitCfg =
+      traceSignalCfg?.circuitBreaker ?? exportCfg.circuitBreaker;
+
+    const wrapped = ExporterBuilder.from(this.getSink())
+      .withRetry(retryCfg)
+      .withCircuitBreaker(circuitCfg)
+      .build();
+    return wrapped;
   }
 
   private getProcessor(exporter: Exporter<TraceSnapshot>) {

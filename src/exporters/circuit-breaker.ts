@@ -61,11 +61,23 @@ export function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
   message: string,
+  signal?: AbortController, // optional signal to cancel the upstream work
 ): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(message)), ms).unref(),
-    ),
-  ]);
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.abort();
+      reject(new Error(message));
+    }, ms).unref();
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer); // clean up the timer when the upstream promise wins
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }

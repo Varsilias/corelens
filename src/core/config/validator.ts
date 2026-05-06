@@ -25,13 +25,6 @@ import {
 // so callers can inline them without a separate assertion step.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function assertPositiveInt(name: string, value: unknown): number {
-  if (!Number.isInteger(value) || Number(value) <= 0) {
-    throw new Error(`[Corelens] ${name} must be a positive integer`);
-  }
-  return Number(value);
-}
-
 function assertIntInRange(
   name: string,
   value: unknown,
@@ -420,6 +413,40 @@ function normaliseTraces(
 function normaliseExport(
   cfg: CorelensConfig['export'],
 ): NormalisedExportConfig {
+  if (!cfg || cfg.enabled === false) {
+    return {
+      enabled: false,
+      mode: 'batch',
+      destination: { type: 'console', pretty: false },
+      batch: {
+        maxQueueSize: normaliseMaxQueueSize(undefined),
+        maxExportBatchSize: normaliseMaxExportBatchSize(
+          undefined,
+          normaliseMaxQueueSize(undefined),
+        ),
+        scheduledDelayMs: normaliseScheduledDelayMs(undefined),
+        shutdownTimeoutMs: normaliseShutdownTimeoutMs(undefined),
+        fullQueuePolicy: 'drop-newest',
+      },
+      retry: {
+        enabled: false,
+        maxRetries: 0,
+        initialDelayMs: 100,
+        maxDelayMs: 2_000,
+      },
+      circuitBreaker: {
+        enabled: false,
+        failureThreshold: 5,
+        resetTimeoutMs: 30_000,
+      },
+      signals: {
+        logs: { enabled: false } as NormalisedSignalExportConfig,
+        metrics: { enabled: false } as NormalisedSignalExportConfig,
+        traces: { enabled: false } as NormalisedSignalExportConfig,
+      },
+    };
+  }
+
   // Destination must be present and valid before we normalise anything else.
   if (!cfg?.destination) {
     throw new Error('[Corelens] export.destination is required');

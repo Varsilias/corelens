@@ -38,14 +38,20 @@ export class FastifyTracingsAdapter implements HttpTracingAdapter<FastifyInstanc
         done();
       } catch (err) {
         console.warn('[Corelens] Failed to start trace span:', err);
+        done();
       }
     });
 
     app.addHook(
       'preHandler',
       (request: CorelensFastifyRequest, reply, done) => {
-        recorder.enterWithSpan(request.corelensSpan);
-        done();
+        try {
+          recorder.enterWithSpan(request.corelensSpan);
+        } catch (err) {
+          console.warn('[Corelens] Failed to enter span context:', err);
+        } finally {
+          done();
+        }
       },
     );
 
@@ -65,18 +71,18 @@ export class FastifyTracingsAdapter implements HttpTracingAdapter<FastifyInstanc
     app.addHook(
       'onResponse',
       (request: CorelensFastifyRequest, reply: FastifyReply, done) => {
-        const span = request.corelensSpan;
+        try {
+          const route =
+            request.routeOptions?.url || request.url || 'unmatched_route';
 
-        const route =
-          request.routeOptions?.url || request.url || 'unmatched_route';
-
-        span?.setAttribute('http.route', route);
-
-        recorder.end(span, {
-          status: reply.statusCode,
-        });
-
-        done();
+          const span = request.corelensSpan;
+          span?.setAttribute('http.route', route);
+          recorder.end(span, { status: reply.statusCode });
+        } catch (err) {
+          console.warn('[Corelens] Failed to end trace span:', err);
+        } finally {
+          done();
+        }
       },
     );
   }

@@ -12,9 +12,8 @@ import {
 import { FileExporter } from '../../exporters/file';
 import { OtlpHttpExporter } from '../../exporters/otlp-http';
 import { Exporter } from '../../exporters/types';
-import { CircuitBreakerExporter } from '../../exporters/circuit-breaker';
-import { RetryingTraceExporter } from '../../exporters/retry';
 import { NoopExporter } from '../../exporters/noop';
+import { ExporterBuilder } from '../../exporters/builder';
 
 export class MetricsModule implements Module {
   private registry: MetricsRegistry;
@@ -36,29 +35,7 @@ export class MetricsModule implements Module {
     const exportCfg = config.export;
     const metricSignalCfg = config.export?.signals?.metrics;
 
-    const retryConfig = {
-      maxRetries:
-        metricSignalCfg?.retry?.maxRetries ?? exportCfg.retry.maxRetries,
-      initialDelayMs:
-        metricSignalCfg?.retry?.initialDelayMs ??
-        exportCfg.retry.initialDelayMs,
-      maxDelayMs:
-        metricSignalCfg?.retry?.maxDelayMs ?? exportCfg.retry.maxDelayMs,
-    };
-
-    const circuitConfig = {
-      threshold:
-        metricSignalCfg?.circuitBreaker?.failureThreshold ??
-        exportCfg.circuitBreaker.failureThreshold,
-      resetTimeoutMs:
-        metricSignalCfg?.circuitBreaker?.resetTimeoutMs ??
-        exportCfg.circuitBreaker.resetTimeoutMs,
-    };
-
-    this.exporter = new CircuitBreakerExporter(
-      new RetryingTraceExporter(this.buildExporter(), retryConfig),
-      circuitConfig,
-    );
+    this.exporter = this.buildExporter();
 
     if (exportCfg.enabled && (metricSignalCfg?.enabled ?? true)) {
       this.scheduler = new MetricsExportScheduler(
@@ -106,6 +83,22 @@ export class MetricsModule implements Module {
   }
 
   private buildExporter(): Exporter<MetricsSnapshot> {
+    const { config } = this.ctx;
+    const exportCfg = config.export;
+    const metricSignalCfg = config.export?.signals?.metrics;
+    // Wrap with retry + circuit breaker
+    const retryCfg = metricSignalCfg?.retry ?? exportCfg.retry;
+    const circuitCfg =
+      metricSignalCfg?.circuitBreaker ?? exportCfg.circuitBreaker;
+
+    const wrapped = ExporterBuilder.from(this.getSink())
+      .withRetry(retryCfg)
+      .withCircuitBreaker(circuitCfg)
+      .build();
+    return wrapped;
+  }
+
+  private getSink(): Exporter<MetricsSnapshot> {
     const config = this.ctx.config;
     const exportCfg = config.export;
     const metricSignalCfg = config.export?.signals?.metrics;

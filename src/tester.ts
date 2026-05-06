@@ -274,3 +274,73 @@ import { corelens } from './core/orchestrator';
 // }
 
 // main();
+
+// import { Writable } from 'node:stream';
+// import { LogsPipeline } from './core/logger/pipeline';
+// import { LogEvent } from './core';
+
+// async function main() {
+//   const writes: string[] = [];
+
+//   class SlowWriter extends Writable {
+//     _write(chunk: Buffer, _enc: BufferEncoding, cb: Function) {
+//       writes.push(chunk.toString());
+//       setTimeout(() => cb(), 50);
+//     }
+//   }
+
+//   const pipeline = new LogsPipeline({
+//     writer: new SlowWriter({ highWaterMark: 1024 } as any),
+//     maxQueueBytes: 1024 * 1024,
+//     fullQueuePolicy: 'drop-newest',
+//     formatter: { format: (e: LogEvent) => e.message },
+//   });
+
+//   pipeline.handle({
+//     level: 'info',
+//     message: 'hello',
+//     serviceName: 'repro',
+//     timestamp: Date.now(),
+//   });
+
+//   await pipeline.flushAll();
+
+//   console.log(writes); // can contain "hello\n" twice
+// }
+
+// main();
+
+import { withTimeout } from './exporters/circuit-breaker';
+import { RetryingTraceExporter } from './exporters/retry';
+
+async function main() {
+  //   console.time('process');
+
+  //   await withTimeout(Promise.resolve('done'), 5000, 'timeout');
+  //   console.log('promise resolved');
+
+  //   // Process can remain alive until the 5s timeout fires.
+  //   process.on('exit', () => console.timeEnd('process'));
+
+  const exporter = new RetryingTraceExporter(
+    {
+      async export() {
+        console.log('attempt');
+        throw new Error('down');
+      },
+    },
+    {
+      maxRetries: 10,
+      initialDelayMs: 1000,
+      maxDelayMs: 1000,
+    },
+  );
+
+  await withTimeout(exporter.export([{}]), 100, 'shutdown timeout').catch((e) =>
+    console.log(e.message),
+  );
+
+  console.log('shutdown path continued');
+}
+
+main();

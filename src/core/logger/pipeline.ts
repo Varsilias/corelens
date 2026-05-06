@@ -153,6 +153,12 @@ export class LogsPipeline implements IPipeline {
 
       const ok = this.config.writer.write(payload);
 
+      // Shift unconditionally — write() accepted the data whether or not
+      // it returned false. Leaving it in the queue causes a duplicate write on drain.
+      this.queue.shift();
+      this.queuedBytes -= chunk.estimatedPayloadBytes;
+      this.flushedCount++;
+
       if (!ok) {
         this.backPressureHitCount++;
         this.isDraining = true;
@@ -162,13 +168,8 @@ export class LogsPipeline implements IPipeline {
           this.flush();
           this.resolveFlushWaitersIfIdle();
         });
-
         return;
       }
-
-      this.queue.shift();
-      this.queuedBytes -= chunk.estimatedPayloadBytes;
-      this.flushedCount++;
     }
 
     this.resolveFlushWaitersIfIdle();

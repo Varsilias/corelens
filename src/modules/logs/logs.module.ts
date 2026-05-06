@@ -12,11 +12,10 @@ import {
 } from '../../core/logger/pipeline';
 import { TeePipeline } from '../../core/logger/tee-pipeline';
 import { CorelensWriter } from '../../core/logger/writer';
-import { CircuitBreakerExporter } from '../../exporters/circuit-breaker';
+import { ExporterBuilder } from '../../exporters/builder';
 import { FileExporter } from '../../exporters/file';
 import { NoopExporter } from '../../exporters/noop';
 import { OtlpHttpExporter } from '../../exporters/otlp-http';
-import { RetryingTraceExporter } from '../../exporters/retry';
 
 export class LogsModule implements Module {
   private pipeline: IPipeline;
@@ -82,29 +81,14 @@ export class LogsModule implements Module {
 
     const exporter = this.buildExporter(destination, isPretty, colorize);
 
-    // Wrap with retry + circuit breaker, same as traces and metrics.
-    const logSignalRetry = logSignalCfg?.retry;
-    const logSignalCircuit = logSignalCfg?.circuitBreaker;
+    // Wrap with retry + circuit breaker
+    const retryCfg = logSignalCfg?.retry;
+    const circuitCfg = logSignalCfg?.circuitBreaker;
 
-    const retryConfig = {
-      maxRetries: logSignalRetry?.maxRetries ?? exportCfg.retry.maxRetries,
-      initialDelayMs:
-        logSignalRetry?.initialDelayMs ?? exportCfg.retry.initialDelayMs,
-      maxDelayMs: logSignalRetry?.maxDelayMs ?? exportCfg.retry.maxDelayMs,
-    };
-
-    const circuitConfig = {
-      threshold:
-        logSignalCircuit?.failureThreshold ??
-        exportCfg.circuitBreaker.failureThreshold,
-      resetTimeoutMs:
-        logSignalCircuit?.resetTimeoutMs ??
-        exportCfg.circuitBreaker.resetTimeoutMs,
-    };
-    const wrapped = new CircuitBreakerExporter(
-      new RetryingTraceExporter(exporter, retryConfig),
-      circuitConfig,
-    );
+    const wrapped = ExporterBuilder.from(exporter)
+      .withRetry(retryCfg)
+      .withCircuitBreaker(circuitCfg)
+      .build();
 
     const teeConfig = {
       maxQueueSize:
