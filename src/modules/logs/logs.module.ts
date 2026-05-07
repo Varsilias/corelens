@@ -61,9 +61,6 @@ export class LogsModule implements Module {
   }
 
   getPipelineStats() {
-    return {
-      primary: this.pipeline.getStats(),
-    };
     return this.pipeline.getStats();
   }
 

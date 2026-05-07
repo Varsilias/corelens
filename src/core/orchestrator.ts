@@ -9,10 +9,28 @@ import { ITracer, NoopTracer } from './traces';
 import { HttpTracingRecorder } from '../adapter/http-tracing-recorder';
 import { normaliseCorelensConfig } from './config/root.config';
 
+export type CorelensShutdownResult = {
+  completed: boolean;
+  durationMs: number;
+  moduleCount: number;
+  errors: Array<{
+    module: string;
+    message: string;
+  }>;
+};
+
+const EMPTY_EXPORT_STATS = {
+  flushCount: 0,
+  failedExportCount: 0,
+  lastExportError: undefined,
+  lastExportErrorAt: undefined,
+};
+
 class Corelens {
   private modules: Module[] = [];
   private started: boolean = false;
-  private shutdownPromise?: Promise<void>;
+  private shutdownPromise?: Promise<CorelensShutdownResult>;
+  private lastShutdownResult?: CorelensShutdownResult;
 
   // specific module wiring
   private logsModule: LogsModule;
@@ -92,10 +110,15 @@ class Corelens {
       metrics: {
         snapshot: this.metricsModule.getFullSnapshot(),
         labelCardinalitySnapshot: this.metricsModule.getCardinalitySnapshot(),
+        export: this.metricsModule.getSchedulerSnapshot() ?? EMPTY_EXPORT_STATS,
       },
       traces: {
         snapshot: this.tracesModule.snapshot(),
         finishedSpans: this.tracesModule.getFinishedSpans({ limit: 10 }),
+      },
+      shutdown: {
+        inProgress: Boolean(this.shutdownPromise && this.started),
+        lastResult: this.lastShutdownResult,
       },
     };
   }
@@ -122,19 +145,38 @@ class Corelens {
   }
 
   async shutdown() {
-    if (!this.started) return;
+    if (!this.started) return this.lastShutdownResult;
 
     if (this.shutdownPromise) return this.shutdownPromise;
 
     const reversedModule = [...this.modules].reverse();
     this.shutdownPromise = (async () => {
+      const startedAt = Date.now();
+      const errors: CorelensShutdownResult['errors'] = [];
+
       for (const module of reversedModule) {
-        await module.stop();
+        try {
+          await module.stop();
+        } catch (error) {
+          errors.push({
+            module: module.constructor.name,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
       if (this.config.logs.reportStatsOnShutdown) {
         process.stdout.write(JSON.stringify(this.getStats()) + '\n');
       }
       this.started = false;
+
+      const result: CorelensShutdownResult = {
+        completed: true,
+        durationMs: Date.now() - startedAt,
+        moduleCount: reversedModule.length,
+        errors,
+      };
+      this.lastShutdownResult = result;
+      return result;
     })();
 
     return this.shutdownPromise;
