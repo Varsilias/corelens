@@ -63,6 +63,13 @@ function assertNonEmptyString(name: string, value: unknown): string {
   return value;
 }
 
+function assertRequiredBoolean(name: string, value: unknown): boolean {
+  if (typeof value !== 'boolean') {
+    throw new Error(`[Corelens] ${name} is required and must be a boolean`);
+  }
+  return value;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Logs validators
 // Rule: logs.maxQueueBytes        >= 64KB, <= 512MB
@@ -321,6 +328,14 @@ function resolveEndpoint(base: string, signal: ExportSignal): string {
   return `${base.replace(/\/$/, '')}/v1/${signal}`;
 }
 
+function validateUrl(endpoint: string, field: string): void {
+  try {
+    new URL(endpoint);
+  } catch {
+    throw new Error(`[Corelens] ${field} must be a valid URL`);
+  }
+}
+
 function normaliseOtlpDestination(
   dest: OtlpHttpExportDestination,
   signalExports?: ExportSignalOverrides,
@@ -351,6 +366,202 @@ function normaliseOtlpDestination(
     },
     headers: dest?.headers ?? {},
     timeoutMs: normaliseOtlpTimeoutMs(dest.timeoutMs),
+  };
+}
+
+function normaliseBaseDestination(
+  destination: ExportDestination,
+  signals?: ExportSignalOverrides,
+): NormalisedExportDestination {
+  switch (destination.type) {
+    case 'console':
+      return {
+        type: 'console',
+        pretty: destination.pretty ?? false,
+      };
+    case 'file':
+      return destination;
+    case 'otlp-http':
+      return normaliseOtlpDestination(destination, signals);
+  }
+}
+
+function normaliseSignalDestination(
+  base: NormalisedExportDestination,
+  override: ExportSignalOverrides[ExportSignal] | undefined,
+  signal: ExportSignal,
+): NormalisedExportDestination {
+  const dest = override?.destination;
+  if (!dest) return base;
+
+  const type = dest.type ?? base.type;
+
+  switch (type) {
+    case 'console':
+      return {
+        type: 'console',
+        pretty:
+          dest.type === 'console'
+            ? (dest.pretty ?? (base.type === 'console' ? base.pretty : false))
+            : base.type === 'console'
+              ? base.pretty
+              : false,
+      };
+
+    case 'file': {
+      const filePath =
+        dest.type === 'file'
+          ? dest.filePath
+          : base.type === 'file'
+            ? base.filePath
+            : undefined;
+      return {
+        type: 'file',
+        filePath: assertNonEmptyString(
+          `export.signals.${signal}.destination.filePath`,
+          filePath,
+        ),
+      };
+    }
+
+    case 'otlp-http': {
+      const endpoint =
+        dest.type === 'otlp-http'
+          ? dest.endpoint
+          : base.type === 'otlp-http'
+            ? base.endpoint
+            : undefined;
+      const validEndpoint = assertNonEmptyString(
+        `export.signals.${signal}.destination.endpoint`,
+        endpoint,
+      );
+      validateUrl(
+        validEndpoint,
+        `export.signals.${signal}.destination.endpoint`,
+      );
+
+      const baseHeaders = base.type === 'otlp-http' ? base.headers : {};
+      const baseTimeoutMs =
+        base.type === 'otlp-http' ? base.timeoutMs : undefined;
+      const fallbackEndpoints =
+        base.type === 'otlp-http'
+          ? base.resolvedEndpoints
+          : {
+              traces: resolveEndpoint(validEndpoint, 'traces'),
+              metrics: resolveEndpoint(validEndpoint, 'metrics'),
+              logs: resolveEndpoint(validEndpoint, 'logs'),
+            };
+
+      return {
+        type: 'otlp-http',
+        endpoint: validEndpoint,
+        headers:
+          dest.type === 'otlp-http'
+            ? { ...baseHeaders, ...(dest.headers ?? {}) }
+            : baseHeaders,
+        timeoutMs: normaliseOtlpTimeoutMs(
+          dest.type === 'otlp-http'
+            ? (dest.timeoutMs ?? baseTimeoutMs)
+            : baseTimeoutMs,
+        ),
+        resolvedEndpoints: {
+          ...fallbackEndpoints,
+          [signal]: validEndpoint,
+        },
+      };
+    }
+
+    default:
+      throw new Error(
+        `[Corelens] Unsupported export destination type: ${(dest as any).type}`,
+      );
+  }
+}
+
+function normaliseSignalBatch(
+  base: NormalisedExportBatchConfig,
+  override: ExportSignalOverrides[ExportSignal] | undefined,
+): NormalisedExportBatchConfig {
+  const raw = override?.batch;
+  const maxQueueSize = normaliseMaxQueueSize(
+    raw?.maxQueueSize ?? base.maxQueueSize,
+  );
+  const maxExportBatchSize = normaliseMaxExportBatchSize(
+    raw?.maxExportBatchSize ?? base.maxExportBatchSize,
+    maxQueueSize,
+  );
+  const batch = {
+    maxQueueSize,
+    maxExportBatchSize,
+    scheduledDelayMs: normaliseScheduledDelayMs(
+      raw?.scheduledDelayMs ?? base.scheduledDelayMs,
+    ),
+    shutdownTimeoutMs: normaliseShutdownTimeoutMs(
+      raw?.shutdownTimeoutMs ?? base.shutdownTimeoutMs,
+    ),
+    fullQueuePolicy: raw?.fullQueuePolicy ?? base.fullQueuePolicy,
+  };
+
+  validateBatchConfig(batch);
+  return batch;
+}
+
+function normaliseSignalRetry(
+  base: NormalisedExportConfig['retry'],
+  override: ExportSignalOverrides[ExportSignal] | undefined,
+): NormalisedExportConfig['retry'] {
+  const raw = override?.retry;
+  const initialDelayMs = normaliseRetryInitialDelayMs(
+    raw?.initialDelayMs ?? base.initialDelayMs,
+  );
+
+  return {
+    enabled: raw?.enabled ?? base.enabled,
+    maxRetries: normaliseMaxRetries(raw?.maxRetries ?? base.maxRetries),
+    initialDelayMs,
+    maxDelayMs: normaliseRetryMaxDelayMs(
+      raw?.maxDelayMs ?? base.maxDelayMs,
+      initialDelayMs,
+    ),
+  };
+}
+
+function normaliseSignalCircuitBreaker(
+  base: NormalisedExportConfig['circuitBreaker'],
+  override: ExportSignalOverrides[ExportSignal] | undefined,
+): NormalisedExportConfig['circuitBreaker'] {
+  const raw = override?.circuitBreaker;
+  return {
+    enabled: raw?.enabled ?? base.enabled,
+    failureThreshold: normaliseFailureThreshold(
+      raw?.failureThreshold ?? base.failureThreshold,
+    ),
+    resetTimeoutMs: normaliseCircuitBreakerResetTimeoutMs(
+      raw?.resetTimeoutMs ?? base.resetTimeoutMs,
+    ),
+  };
+}
+
+function normaliseSignalExport(
+  signal: ExportSignal,
+  base: NormalisedSignalExportConfig,
+  override: ExportSignalOverrides[ExportSignal] | undefined,
+): NormalisedSignalExportConfig {
+  return {
+    enabled: override
+      ? assertRequiredBoolean(
+          `export.signals.${signal}.enabled`,
+          override.enabled,
+        )
+      : base.enabled,
+    mode: override?.mode ?? base.mode,
+    destination: normaliseSignalDestination(base.destination, override, signal),
+    batch: normaliseSignalBatch(base.batch, override),
+    retry: normaliseSignalRetry(base.retry, override),
+    circuitBreaker: normaliseSignalCircuitBreaker(
+      base.circuitBreaker,
+      override,
+    ),
   };
 }
 
@@ -413,7 +624,43 @@ function normaliseTraces(
 function normaliseExport(
   cfg: CorelensConfig['export'],
 ): NormalisedExportConfig {
-  if (!cfg || cfg.enabled === false) {
+  if (!cfg) {
+    return {
+      enabled: false,
+      mode: 'batch',
+      destination: { type: 'console', pretty: false },
+      batch: {
+        maxQueueSize: normaliseMaxQueueSize(undefined),
+        maxExportBatchSize: normaliseMaxExportBatchSize(
+          undefined,
+          normaliseMaxQueueSize(undefined),
+        ),
+        scheduledDelayMs: normaliseScheduledDelayMs(undefined),
+        shutdownTimeoutMs: normaliseShutdownTimeoutMs(undefined),
+        fullQueuePolicy: 'drop-newest',
+      },
+      retry: {
+        enabled: false,
+        maxRetries: 0,
+        initialDelayMs: 100,
+        maxDelayMs: 2_000,
+      },
+      circuitBreaker: {
+        enabled: false,
+        failureThreshold: 5,
+        resetTimeoutMs: 30_000,
+      },
+      signals: {
+        logs: { enabled: false } as NormalisedSignalExportConfig,
+        metrics: { enabled: false } as NormalisedSignalExportConfig,
+        traces: { enabled: false } as NormalisedSignalExportConfig,
+      },
+    };
+  }
+
+  const exportEnabled = assertRequiredBoolean('export.enabled', cfg.enabled);
+
+  if (!exportEnabled) {
     return {
       enabled: false,
       mode: 'batch',
@@ -451,7 +698,6 @@ function normaliseExport(
   if (!cfg?.destination) {
     throw new Error('[Corelens] export.destination is required');
   }
-  validateDestination(cfg.destination);
 
   // Resolve fields with cross-field dependencies in dependency order.
   const maxQueueSize = normaliseMaxQueueSize(cfg.batch?.maxQueueSize);
@@ -467,11 +713,7 @@ function normaliseExport(
     initialDelayMs,
   );
 
-  const destination = (
-    cfg.destination.type === 'otlp-http'
-      ? normaliseOtlpDestination(cfg.destination, cfg.signals)
-      : cfg.destination
-  ) as NormalisedExportDestination;
+  const destination = normaliseBaseDestination(cfg.destination, cfg.signals);
 
   const batch = {
     maxQueueSize,
@@ -504,7 +746,7 @@ function normaliseExport(
   // Signal-level overrides are merged on top of the base export config.
   // Each signal inherits the base and selectively overrides only what's set.
   const baseSignal = {
-    enabled: true,
+    enabled: false,
     mode: cfg.mode ?? 'batch',
     destination,
     batch,
@@ -512,22 +754,13 @@ function normaliseExport(
     circuitBreaker,
   };
   const signals = {
-    logs: {
-      ...baseSignal,
-      ...cfg.signals?.logs,
-    } as NormalisedSignalExportConfig,
-    metrics: {
-      ...baseSignal,
-      ...cfg.signals?.metrics,
-    } as NormalisedSignalExportConfig,
-    traces: {
-      ...baseSignal,
-      ...cfg.signals?.traces,
-    } as NormalisedSignalExportConfig,
+    logs: normaliseSignalExport('logs', baseSignal, cfg.signals?.logs),
+    metrics: normaliseSignalExport('metrics', baseSignal, cfg.signals?.metrics),
+    traces: normaliseSignalExport('traces', baseSignal, cfg.signals?.traces),
   };
 
   return {
-    enabled: cfg.enabled ?? true,
+    enabled: exportEnabled,
     mode: cfg.mode ?? 'batch',
     destination,
     batch,

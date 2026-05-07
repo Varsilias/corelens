@@ -89,7 +89,7 @@ export type ExportCircuitBreakerConfig = {
 };
 
 export type SignalExportOverride = {
-  enabled?: boolean;
+  enabled: boolean;
   mode?: ExportMode;
   destination?: Partial<ExportDestination> & {
     type?: ExportDestinationType;
@@ -106,7 +106,7 @@ export type ExportSignalOverrides = {
 };
 
 export type CorelensExportConfig = {
-  enabled?: boolean;
+  enabled: boolean;
   mode?: ExportMode;
   destination: ExportDestination;
   batch?: ExportBatchConfig;
@@ -115,6 +115,17 @@ export type CorelensExportConfig = {
   signals?: ExportSignalOverrides;
 };
 
+// export type CorelensExportConfig =
+//   | { enabled: boolean }
+//   | {
+//       enabled: boolean;
+//       mode?: ExportMode;
+//       destination: ExportDestination;
+//       batch?: ExportBatchConfig;
+//       retry?: ExportRetryConfig;
+//       circuitBreaker?: ExportCircuitBreakerConfig;
+//       signals?: ExportSignalOverrides;
+//     };
 /**
  * ===================================================
  *                Logs Configuration
