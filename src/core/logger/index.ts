@@ -68,14 +68,19 @@ export class Logger implements ILogger {
       ? this.contextProvider?.getTraceContext()
       : undefined;
 
-    this.pipeline.handle({
+    const event: LogEvent = {
       level,
       message,
       serviceName: this.serviceName,
       context,
-      traceId: traceContext?.traceId,
-      spanId: traceContext?.spanId,
       timestamp: this.getTimestamp(),
-    } as LogEvent);
+    };
+
+    if (traceContext) {
+      event.traceId = traceContext.traceId;
+      event.spanId = traceContext.spanId;
+    }
+
+    this.pipeline.handle(event);
   }
 }

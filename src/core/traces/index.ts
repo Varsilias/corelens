@@ -83,6 +83,7 @@ export class Tracer implements ContextProvider, ITracer {
     );
 
     span.setAttribute('service.name', this.config.serviceName);
+    this.processor.onStart?.(span);
 
     return span;
   }
