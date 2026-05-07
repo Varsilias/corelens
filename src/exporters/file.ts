@@ -51,8 +51,16 @@ export class FileExporter<
 
   async shutdown(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.stream.end(() => resolve());
-      this.stream.once('error', reject);
+      const onError = (error: Error) => {
+        this.stream.off('error', onError);
+        reject(error);
+      };
+
+      this.stream.once('error', onError);
+      this.stream.end(() => {
+        this.stream.off('error', onError);
+        resolve();
+      });
     });
   }
 }

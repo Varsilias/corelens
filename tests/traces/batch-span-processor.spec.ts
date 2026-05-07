@@ -158,4 +158,86 @@ describe('batch span processor', () => {
 
     expect(exporter.shutdown).toHaveBeenCalledTimes(1);
   });
+
+  it('deduplicates concurrent forceFlush calls', async () => {
+    let resolveExport: (() => void) | undefined;
+    const exporter = {
+      export: jest.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveExport = resolve;
+          }),
+      ),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+    };
+    const processor = makeProcessor(exporter, 'drop-newest');
+
+    endSpan(processor, 'span-1');
+    const first = processor.forceFlush();
+    const second = processor.forceFlush();
+
+    expect(first).toBe(second);
+    expect(exporter.export).toHaveBeenCalledTimes(1);
+
+    resolveExport?.();
+    await first;
+    await processor.shutdown();
+  });
+
+  it('shutdown timeout aborts a hanging flush and records the failure', async () => {
+    const exporter = {
+      export: jest.fn(
+        (_records: unknown[], signal?: AbortSignal) =>
+          new Promise<void>((_resolve, reject) => {
+            signal?.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          }),
+      ),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+    };
+    const processor = new BatchSpanProcessor(exporter, {
+      maxQueueSize: 2,
+      maxExportBatchSize: 10,
+      scheduledDelayMs: 60_000,
+      shutdownTimeoutMs: 10,
+      fullQueuePolicy: 'drop-newest',
+      diagnostics: { warnOnExportFailure: false },
+    });
+
+    endSpan(processor, 'span-1');
+    await expect(processor.shutdown()).resolves.toBeUndefined();
+
+    expect(processor.snapshot()).toMatchObject({
+      currentQueueLength: 1,
+      lastExportError: '[Corelens] trace shutdown flush timed out',
+    });
+    expect(exporter.shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not create unhandled rejections for background flush failures', async () => {
+    const unhandled = jest.fn();
+    process.once('unhandledRejection', unhandled);
+    const processor = new BatchSpanProcessor(
+      {
+        export: jest.fn().mockRejectedValue(new Error('collector unavailable')),
+        shutdown: jest.fn().mockResolvedValue(undefined),
+      },
+      {
+        maxQueueSize: 10,
+        maxExportBatchSize: 1,
+        scheduledDelayMs: 60_000,
+        shutdownTimeoutMs: 1_000,
+        fullQueuePolicy: 'drop-newest',
+        diagnostics: { warnOnExportFailure: false },
+      },
+    );
+
+    endSpan(processor, 'span-1');
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(unhandled).not.toHaveBeenCalled();
+    process.removeListener('unhandledRejection', unhandled);
+    await processor.shutdown();
+  });
 });

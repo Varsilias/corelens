@@ -12,6 +12,7 @@ const otlpPayload = {
 
 describe('otlp http exporter', () => {
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -101,5 +102,55 @@ describe('otlp http exporter', () => {
     await expect(exporter.export([{ id: 'span-1' }])).rejects.toThrow(
       'OTLP HTTP export failed: 503 Service Unavailable collector rejected payload',
     );
+  });
+
+  it('aborts the request when timeoutMs expires', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation((_url, init) => {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted', 'AbortError'));
+          });
+        });
+      });
+    const exporter = new OtlpHttpExporter(
+      { endpoint: 'http://collector:4318/v1/traces', timeoutMs: 50 },
+      { format: () => otlpPayload },
+    );
+
+    const result = exporter.export([{ id: 'span-1' }]);
+    const rejection = expect(result).rejects.toThrow(
+      'The operation was aborted',
+    );
+
+    await jest.advanceTimersByTimeAsync(50);
+
+    await rejection;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates an external abort signal to fetch', async () => {
+    const controller = new AbortController();
+    let observedSignal: AbortSignal | undefined;
+    jest.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+      observedSignal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted', 'AbortError'));
+        });
+      });
+    });
+    const exporter = new OtlpHttpExporter(
+      { endpoint: 'http://collector:4318/v1/traces', timeoutMs: 10_000 },
+      { format: () => otlpPayload },
+    );
+
+    const result = exporter.export([{ id: 'span-1' }], controller.signal);
+    controller.abort();
+
+    await expect(result).rejects.toThrow('The operation was aborted');
+    expect(observedSignal?.aborted).toBe(true);
   });
 });

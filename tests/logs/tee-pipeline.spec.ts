@@ -52,6 +52,7 @@ function makeTee(
 
 describe('logs tee pipeline', () => {
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -132,5 +133,63 @@ describe('logs tee pipeline', () => {
     await pipeline.flushAll();
 
     expect(secondary.shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops queued logs when shutdown export exceeds the timeout', async () => {
+    jest.spyOn(diagnostics, 'warn').mockImplementation(() => {});
+    const secondary = {
+      export: jest.fn(
+        (_records: LogEvent[], signal?: AbortSignal) =>
+          new Promise<void>((_resolve, reject) => {
+            signal?.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          }),
+      ),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+    };
+    const pipeline = new TeePipeline(primary(), secondary, {
+      maxQueueSize: 2,
+      maxExportBatchSize: 10,
+      scheduledDelayMs: 60_000,
+      shutdownTimeoutMs: 10,
+      fullQueuePolicy: 'drop-newest',
+      diagnostics: { warnOnExportFailure: false },
+    });
+
+    pipeline.handle(event('one'));
+    await pipeline.flushAll();
+
+    expect(pipeline.snapshot()).toMatchObject({
+      currentQueueLength: 1,
+      droppedCount: 1,
+      lastExportError: '[Corelens] Log export tee flush timed out',
+    });
+    expect(secondary.shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not create unhandled rejections for background export failures', async () => {
+    const unhandled = jest.fn();
+    process.once('unhandledRejection', unhandled);
+    const secondary = {
+      export: jest.fn().mockRejectedValue(new Error('sink unavailable')),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+    };
+    const pipeline = new TeePipeline(primary(), secondary, {
+      maxQueueSize: 10,
+      maxExportBatchSize: 1,
+      scheduledDelayMs: 60_000,
+      shutdownTimeoutMs: 1_000,
+      fullQueuePolicy: 'drop-newest',
+      diagnostics: { warnOnExportFailure: false },
+    });
+
+    pipeline.handle(event('one'));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(unhandled).not.toHaveBeenCalled();
+    process.removeListener('unhandledRejection', unhandled);
+    jest.spyOn(diagnostics, 'warn').mockImplementation(() => {});
+    await pipeline.flushAll();
   });
 });

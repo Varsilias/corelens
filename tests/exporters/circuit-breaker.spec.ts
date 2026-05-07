@@ -52,6 +52,32 @@ describe('circuit breaker exporter', () => {
     expect(exportMock).toHaveBeenCalledTimes(3);
   });
 
+  it('reopens when the half-open trial export fails', async () => {
+    const exportMock = jest.fn().mockRejectedValue(new Error('still down'));
+    const exporter = new CircuitBreakerExporter(
+      { export: exportMock },
+      { threshold: 1, resetTimeoutMs: 1_000 },
+    );
+    const now = jest.spyOn(Date, 'now');
+
+    now.mockReturnValue(1_000);
+    await expect(exporter.export([{ id: 'span-1' }])).rejects.toThrow(
+      'still down',
+    );
+
+    now.mockReturnValue(2_001);
+    await expect(exporter.export([{ id: 'span-2' }])).rejects.toThrow(
+      'still down',
+    );
+
+    now.mockReturnValue(2_002);
+    await expect(exporter.export([{ id: 'span-3' }])).rejects.toThrow(
+      'CircuitBreaker: Circuit is OPEN',
+    );
+
+    expect(exportMock).toHaveBeenCalledTimes(2);
+  });
+
   it('delegates shutdown to the wrapped exporter', async () => {
     const shutdown = jest.fn().mockResolvedValue(undefined);
     const exporter = new CircuitBreakerExporter(

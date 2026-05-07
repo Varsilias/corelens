@@ -292,7 +292,7 @@ export class BatchSpanProcessor implements SpanProcessor {
     }
   }
 
-  async forceFlush(signal?: AbortSignal): Promise<void> {
+  forceFlush(signal?: AbortSignal): Promise<void> {
     if (this.flushPromise) {
       if (signal) {
         const abortActiveFlush = () => this.flushAbortController?.abort();

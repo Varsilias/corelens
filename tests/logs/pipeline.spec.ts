@@ -114,4 +114,44 @@ describe('logs pipeline', () => {
       drainCount: 1,
     });
   });
+
+  it('drops a single oversized log event without queuing it', () => {
+    const writer = backpressuredWriter();
+    const pipeline = new LogsPipeline({
+      writer: writer as any,
+      maxQueueBytes: 80,
+      fullQueuePolicy: 'drop-oldest',
+      formatter: formatter(),
+    });
+
+    expect(pipeline.handle(event('x'.repeat(100)))).toBe(false);
+
+    expect(pipeline.getStats().primary).toMatchObject({
+      producedCount: 1,
+      acceptedCount: 0,
+      currentQueueLength: 0,
+      droppedCount: 1,
+    });
+    expect(writer.write).not.toHaveBeenCalled();
+  });
+
+  it('shutdown flush is idempotent', async () => {
+    const writer = backpressuredWriter();
+    writer.write.mockReturnValue(true);
+    const pipeline = new LogsPipeline({
+      writer: writer as any,
+      maxQueueBytes: 1024,
+      fullQueuePolicy: 'drop-newest',
+      formatter: formatter(),
+    });
+
+    pipeline.handle(event('first'));
+    await pipeline.flushAll();
+    await pipeline.flushAll();
+
+    expect(pipeline.getStats().primary).toMatchObject({
+      currentQueueLength: 0,
+      flushedCount: 1,
+    });
+  });
 });
