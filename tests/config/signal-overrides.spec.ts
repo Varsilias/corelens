@@ -1,4 +1,4 @@
-import { normaliseConfig } from '../../src/core/config/validator';
+import { normaliseCorelensConfig as normaliseConfig } from '../../src/core/config/root.config';
 
 describe('signal export overrides', () => {
   it('inherits base export config for every signal by default', () => {

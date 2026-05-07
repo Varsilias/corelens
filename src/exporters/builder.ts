@@ -1,7 +1,7 @@
 import {
   NormalisedExportCircuitBreakerConfig,
   NormalisedExportRetryConfig,
-} from '../core/config';
+} from '../core/config/types';
 import { CircuitBreakerExporter } from './circuit-breaker';
 import { RetryingTraceExporter } from './retry';
 import { Exporter } from './types';

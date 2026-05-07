@@ -108,24 +108,12 @@ export type ExportSignalOverrides = {
 export type CorelensExportConfig = {
   enabled: boolean;
   mode?: ExportMode;
-  destination: ExportDestination;
+  destination?: ExportDestination;
   batch?: ExportBatchConfig;
   retry?: ExportRetryConfig;
   circuitBreaker?: ExportCircuitBreakerConfig;
   signals?: ExportSignalOverrides;
 };
-
-// export type CorelensExportConfig =
-//   | { enabled: boolean }
-//   | {
-//       enabled: boolean;
-//       mode?: ExportMode;
-//       destination: ExportDestination;
-//       batch?: ExportBatchConfig;
-//       retry?: ExportRetryConfig;
-//       circuitBreaker?: ExportCircuitBreakerConfig;
-//       signals?: ExportSignalOverrides;
-//     };
 /**
  * ===================================================
  *                Logs Configuration

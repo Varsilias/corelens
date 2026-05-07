@@ -3,7 +3,7 @@ import {
   OTLPMetric,
   OTLPMetricsRequest,
 } from '../../otlp/types';
-import { SignalFormatter } from '../config';
+import { SignalFormatter } from '../config/types';
 import { MetricsSnapshot, RegistryEntry, HistogramSample } from './registry';
 import { promRenderer } from './prometheus-text';
 

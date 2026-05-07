@@ -5,7 +5,7 @@ import {
   OTLPLogsRequest,
   SEVERITY_NUMBER,
 } from '../../otlp/types';
-import { SignalFormatter } from '../config';
+import { SignalFormatter } from '../config/types';
 
 type TextFormatConfig = {
   prettyEnabled: boolean;

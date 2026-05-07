@@ -1,5 +1,5 @@
-import { Module, NormalisedExportDestination } from '../../core/config';
-import { ModuleContext } from '../../core/config';
+import { Module, NormalisedExportDestination } from '../../core/config/types';
+import { ModuleContext } from '../../core/config/types';
 import {
   LogsConsoleFormatter,
   LogsFileFormatter,

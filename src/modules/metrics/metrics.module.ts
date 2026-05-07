@@ -1,5 +1,5 @@
-import { Module } from '../../core/config';
-import { ModuleContext } from '../../core/config';
+import { Module } from '../../core/config/types';
+import { ModuleContext } from '../../core/config/types';
 import { MetricsRegistry, MetricsSnapshot } from '../../core';
 import { RuntimeMetricsCollector } from '../../collectors/runtime';
 import { MetricsExportScheduler } from '../../core/metrics/exporter-scheduler';

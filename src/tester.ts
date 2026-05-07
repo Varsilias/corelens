@@ -1,4 +1,4 @@
-import { CorelensConfig } from './core/config';
+import { CorelensConfig } from './core/config/types';
 import { corelens } from './core/orchestrator';
 
 // const config = {

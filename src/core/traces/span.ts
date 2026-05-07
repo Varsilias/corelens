@@ -1,5 +1,5 @@
 import { TraceContext } from '.';
-import { FullQueuePolicy } from '../config';
+import { FullQueuePolicy } from '../config/types';
 
 export type SpanStatus = 'unset' | 'ok' | 'error';
 

@@ -2,11 +2,8 @@ import { LogEvent } from '.';
 import { diagnostics } from '../diagnostics';
 import { withTimeout } from '../../exporters/circuit-breaker';
 import { Exporter } from '../../exporters/types';
-import { FullQueuePolicy } from '../config';
-import {
-  IPipeline,
-  LogsPipelineStats,
-} from './pipeline';
+import { FullQueuePolicy } from '../config/types';
+import { IPipeline, LogsPipelineStats } from './pipeline';
 
 type TeePipelineConfig = {
   maxQueueSize: number;

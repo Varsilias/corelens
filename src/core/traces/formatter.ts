@@ -5,7 +5,7 @@ import {
   OTLPSpan,
   OTLPSpanEvent,
 } from '../../otlp/types';
-import { SignalFormatter } from '../config';
+import { SignalFormatter } from '../config/types';
 import {
   mapKindToOtlpValue,
   SpanAttribute,

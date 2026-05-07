@@ -1,4 +1,4 @@
-import { normaliseConfig } from '../../src/core/config/validator';
+import { normaliseCorelensConfig as normaliseConfig } from '../../src/core/config/root.config';
 
 describe('config normalisation', () => {
   it('normalises minimal setup with local logging and disabled export defaults', () => {
@@ -24,7 +24,7 @@ describe('config normalisation', () => {
       logs: { enabled: false },
       metrics: { enabled: true },
       traces: { enabled: true, samplingRate: 0.25 },
-      export: { enabled: false, destination: { type: 'console' } },
+      export: { enabled: false },
     });
 
     expect(config.logs.enabled).toBe(false);

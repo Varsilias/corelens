@@ -1,13 +1,13 @@
 import { HttpMetricsRecorder } from '../adapter/http-metrics-recorder';
 import { LogsModule, MetricsModule, TracesModule } from '../modules';
-import { CorelensConfig, NormalisedConfig } from './config';
+import { CorelensConfig, NormalisedConfig } from './config/types';
 import { ILogger, Logger } from './logger';
-import { Module } from './config';
+import { Module } from './config/types';
 import { NoopPipeline } from './logger/pipeline';
 import { IMetricsRegistry, NoopMetricsRegistry } from './metrics/registry';
 import { ITracer, NoopTracer } from './traces';
 import { HttpTracingRecorder } from '../adapter/http-tracing-recorder';
-import { normaliseConfig } from './config/validator';
+import { normaliseCorelensConfig } from './config/root.config';
 
 class Corelens {
   private modules: Module[] = [];
@@ -161,7 +161,7 @@ class Corelens {
 }
 
 export function corelens(config: CorelensConfig): Corelens {
-  const normalisedConfig = normaliseConfig(config);
+  const normalisedConfig = normaliseCorelensConfig(config);
   const sdk = new Corelens(normalisedConfig);
   sdk.start();
   return sdk;

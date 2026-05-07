@@ -1,4 +1,4 @@
-import { NormalisedConfig } from '../config';
+import { NormalisedConfig } from '../config/types';
 import { ContextProvider } from '../traces';
 import { IPipeline } from './pipeline';
 

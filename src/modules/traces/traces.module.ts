@@ -1,5 +1,5 @@
-import { Module } from '../../core/config';
-import { ModuleContext } from '../../core/config';
+import { Module } from '../../core/config/types';
+import { ModuleContext } from '../../core/config/types';
 import { TraceContextStore, TraceIdGenerator, Tracer } from '../../core/traces';
 import {
   TraceConsoleFormatter,

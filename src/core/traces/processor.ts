@@ -1,6 +1,6 @@
 import { withTimeout } from '../../exporters/circuit-breaker';
 import { Exporter } from '../../exporters/types';
-import { FullQueuePolicy } from '../config';
+import { FullQueuePolicy } from '../config/types';
 import { diagnostics } from '../diagnostics';
 import {
   BatchSpanProcessorConfig,
@@ -297,9 +297,7 @@ export class BatchSpanProcessor implements SpanProcessor {
         const abortActiveFlush = () => this.flushAbortController?.abort();
         signal.addEventListener('abort', abortActiveFlush, { once: true });
         void this.flushPromise
-          .finally(() =>
-            signal.removeEventListener('abort', abortActiveFlush),
-          )
+          .finally(() => signal.removeEventListener('abort', abortActiveFlush))
           .catch(() => {});
       }
       return this.flushPromise;

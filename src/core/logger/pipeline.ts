@@ -1,5 +1,5 @@
 import { Writable } from 'node:stream';
-import { FullQueuePolicy, SignalFormatter } from '../config';
+import { FullQueuePolicy, SignalFormatter } from '../config/types';
 import { LogEvent } from '.';
 
 type QueueItem = {
