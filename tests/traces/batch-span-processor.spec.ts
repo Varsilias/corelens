@@ -1,6 +1,5 @@
 import { BatchSpanProcessor } from '../../src/core/traces/processor';
-import { Span, SpanKind } from '../../src/core/traces/span';
-import { TraceExporter } from '../../src/core/traces/span';
+import { Span, SpanKind, TraceExporter } from '../../src/core/traces/span';
 
 function makeProcessor(
   exporter: TraceExporter,
@@ -30,7 +29,43 @@ function endSpan(processor: BatchSpanProcessor, name: string) {
   span.end();
 }
 
-describe('batch export queue', () => {
+describe('batch span processor', () => {
+  it('uses an unref timer', async () => {
+    const processor = makeProcessor(
+      { export: jest.fn().mockResolvedValue(undefined) },
+      'drop-newest',
+    );
+
+    expect((processor as any).timer.hasRef()).toBe(false);
+    await processor.shutdown();
+  });
+
+  it('drains all trace batches during shutdown', async () => {
+    const exported: unknown[] = [];
+    const processor = new BatchSpanProcessor(
+      {
+        async export(spans) {
+          exported.push(...spans);
+        },
+      },
+      {
+        maxQueueSize: 10,
+        maxExportBatchSize: 2,
+        scheduledDelayMs: 60_000,
+        shutdownTimeoutMs: 5_000,
+        fullQueuePolicy: 'drop-newest',
+      },
+    );
+
+    for (let i = 0; i < 5; i++) {
+      endSpan(processor, `span-${i}`);
+    }
+
+    await processor.shutdown();
+
+    expect(exported).toHaveLength(5);
+  });
+
   it('keeps queued records and records failure stats when export fails', async () => {
     const exporter = {
       export: jest.fn().mockRejectedValue(new Error('collector unavailable')),
@@ -108,5 +143,19 @@ describe('batch export queue', () => {
 
     expect(exported).toEqual(['span-2', 'span-3']);
     await processor.shutdown();
+  });
+
+  it('shutdown is idempotent and delegates exporter shutdown once', async () => {
+    const exporter = {
+      export: jest.fn().mockResolvedValue(undefined),
+      shutdown: jest.fn().mockResolvedValue(undefined),
+    };
+    const processor = makeProcessor(exporter, 'drop-newest');
+
+    endSpan(processor, 'span-1');
+    await processor.shutdown();
+    await processor.shutdown();
+
+    expect(exporter.shutdown).toHaveBeenCalledTimes(1);
   });
 });

@@ -269,6 +269,7 @@ export class BatchSpanProcessor implements SpanProcessor {
   }
 
   async shutdown(): Promise<void> {
+    if (this.isShuttingDown) return;
     this.isShuttingDown = true;
     if (this.timer) clearInterval(this.timer);
     const controller = new AbortController();

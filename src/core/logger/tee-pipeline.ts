@@ -29,6 +29,7 @@ export class TeePipeline implements IPipeline {
 
   private flushPromise: Promise<void> | null = null;
   private flushAbortController?: AbortController;
+  private shutdownPromise: Promise<void> | null = null;
 
   constructor(
     private readonly primary: IPipeline,
@@ -104,6 +105,15 @@ export class TeePipeline implements IPipeline {
   }
 
   async flushAll(): Promise<void> {
+    if (this.shutdownPromise) {
+      return this.shutdownPromise;
+    }
+
+    this.shutdownPromise = this.shutdownOnce();
+    return this.shutdownPromise;
+  }
+
+  private async shutdownOnce(): Promise<void> {
     this.isShuttingDown = true;
     if (this.timer) clearInterval(this.timer);
 

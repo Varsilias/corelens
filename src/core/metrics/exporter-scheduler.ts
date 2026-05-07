@@ -69,14 +69,22 @@ export class MetricsExportScheduler implements Processor {
     this.activeFlushController?.abort();
     const controller = new AbortController();
 
-    await withTimeout(
-      this.flushNow(controller.signal),
-      this.config.shutdownTimeoutMs,
-      '[Corelens] Metrics export scheduler shutdown flush timed out',
-      controller,
-    );
+    try {
+      await withTimeout(
+        this.flushNow(controller.signal),
+        this.config.shutdownTimeoutMs,
+        '[Corelens] Metrics export scheduler shutdown flush timed out',
+        controller,
+      );
+    } catch (error) {
+      this.reportShutdownFailure(error);
+    }
 
-    await this.exporter.shutdown?.();
+    try {
+      await this.exporter.shutdown?.();
+    } catch (error) {
+      this.reportShutdownFailure(error);
+    }
   }
 
   snapshot() {
@@ -99,5 +107,11 @@ export class MetricsExportScheduler implements Processor {
         `[Corelens] Metrics export failed: ${this.lastExportError}\n`,
       );
     }
+  }
+
+  private reportShutdownFailure(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    if (this.lastExportError === message) return;
+    this.reportFailure(error);
   }
 }
