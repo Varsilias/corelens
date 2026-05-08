@@ -10,7 +10,7 @@ const {
 const ITERATIONS = Number(process.env.BENCH_ITERATIONS ?? 5_000);
 
 function createLens() {
-  const { corelens } = require('../dist/src');
+  const { corelens } = require('../dist');
   return corelens({
     serviceName: 'bench-frameworks',
     logs: { enabled: false },
@@ -36,7 +36,7 @@ async function benchExpress() {
   const {
     ExpressMetricsAdapter,
     ExpressTracingAdapter,
-  } = require('../dist/src/adapter');
+  } = require('../dist/adapter');
   const middlewares = [];
   const app = {
     use: (middleware) => middlewares.push(middleware),
@@ -113,7 +113,7 @@ async function benchFastify() {
   const {
     FastifyMetricsAdapter,
     FastifyTracingAdapter,
-  } = require('../dist/src/adapter');
+  } = require('../dist/adapter');
   const lens = createLens();
   const app = fastify({ logger: false });
   new FastifyMetricsAdapter().register(app, lens.httpMetricsRecorder);
@@ -163,10 +163,7 @@ async function benchHono() {
   }
 
   const { Hono } = hono;
-  const {
-    HonoMetricsAdapter,
-    HonoTracingAdapter,
-  } = require('../dist/src/adapter');
+  const { HonoMetricsAdapter, HonoTracingAdapter } = require('../dist/adapter');
   const lens = createLens();
   const app = new Hono();
   new HonoMetricsAdapter().register(app, lens.httpMetricsRecorder);

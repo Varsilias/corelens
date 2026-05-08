@@ -1,9 +1,8 @@
+import { PrometheusTextExporter, corelens } from '@varsilias/corelens';
 import {
   FastifyMetricsAdapter,
   FastifyTracingAdapter,
-  PrometheusTextExporter,
-  corelens,
-} from '@varsilias/corelens';
+} from '@varsilias/corelens/adapter';
 import type { FastifyInstance } from 'fastify';
 
 export const lens = corelens({

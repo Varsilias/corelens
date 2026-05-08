@@ -1,9 +1,8 @@
+import { PrometheusTextExporter, corelens } from '@varsilias/corelens';
 import {
   HonoMetricsAdapter,
   HonoTracingAdapter,
-  PrometheusTextExporter,
-  corelens,
-} from '@varsilias/corelens';
+} from '@varsilias/corelens/adapter';
 import type { Hono } from 'hono';
 
 export const lens = corelens({

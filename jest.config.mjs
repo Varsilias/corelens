@@ -1,13 +1,11 @@
-// jest.config.ts
-import type { Config } from 'jest';
-
-const config: Config = {
+/** @type {import('jest').Config} */
+const config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   moduleFileExtensions: ['ts', 'js', 'json'],
   setupFiles: ['dotenv/config'],
   roots: ['<rootDir>/tests', '<rootDir>/src'],
-  coverageDirectory: '../coverage',
+  coverageDirectory: '<rootDir>/coverage',
   testRegex: '.*\\.spec\\.ts$',
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
   transform: {

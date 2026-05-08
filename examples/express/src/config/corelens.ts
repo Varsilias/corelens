@@ -1,9 +1,8 @@
+import { PrometheusTextExporter, corelens } from '@varsilias/corelens';
 import {
   ExpressMetricsAdapter,
   ExpressTracingAdapter,
-  PrometheusTextExporter,
-  corelens,
-} from '@varsilias/corelens';
+} from '@varsilias/corelens/adapter';
 import type { Express } from 'express';
 
 export const lens = corelens({

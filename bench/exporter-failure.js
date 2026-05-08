@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const { measure, resultPath, writeReport } = require('./lib/runner');
-const { BatchSpanProcessor } = require('../dist/src/core/traces/processor');
-const { Span, SpanKind } = require('../dist/src/core/traces/span');
+const { BatchSpanProcessor } = require('../dist/core/traces/processor');
+const { Span, SpanKind } = require('../dist/core/traces/span');
 
 const ITERATIONS = Number(process.env.BENCH_ITERATIONS ?? 20_000);
 

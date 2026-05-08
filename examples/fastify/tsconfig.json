@@ -7,12 +7,14 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "6.0",
     "moduleResolution": "node",
 
     "baseUrl": ".",
     "rootDir": "../..",
     "paths": {
-      "@varsilias/corelens": ["../../src/index.ts"]
+      "@varsilias/corelens": ["../../src/index.ts"],
+      "@varsilias/corelens/adapter": ["../../src/adapter/index.ts"]
     },
 
     "outDir": "./dist"

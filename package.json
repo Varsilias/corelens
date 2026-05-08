@@ -2,11 +2,41 @@
   "name": "@varsilias/corelens",
   "version": "1.0.0",
   "description": "Corelens is an opinionated, high-performance observability SDK for Node.js that provides logs, metrics, and traces with minimal setup, built on top of OpenTelemetry but hiding its complexity.",
-  "main": "dist/src/index.js",
-  "types": "dist/src/index.d.ts",
+  "type": "commonjs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./adapter": {
+      "types": "./dist/adapter/index.d.ts",
+      "require": "./dist/adapter/index.js",
+      "default": "./dist/adapter/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "require": "./dist/core/index.js",
+      "default": "./dist/core/index.js"
+    },
+    "./exporters": {
+      "types": "./dist/exporters/index.d.ts",
+      "require": "./dist/exporters/index.js",
+      "default": "./dist/exporters/index.js"
+    },
+    "./modules": {
+      "types": "./dist/modules/index.d.ts",
+      "require": "./dist/modules/index.js",
+      "default": "./dist/modules/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
-    "dist",
-    "README.md"
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "opentelemetry",
@@ -22,7 +52,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "jest",
@@ -72,9 +103,9 @@
     "winston": "^3.19.0"
   },
   "peerDependencies": {
-    "express": "^5.2.1",
-    "fastify": "^5.8.5",
-    "hono": "^4.12.15"
+    "express": ">=4 <6",
+    "fastify": ">=4 <6",
+    "hono": ">=4 <5"
   },
   "peerDependenciesMeta": {
     "hono": {
@@ -90,7 +121,7 @@
   "overrides": {
     "glob": "^10.5.0",
     "test-exclude": {
-      "glob": "^10.5.0"
+      "glob": "^7.2.3"
     },
     "brace-expansion": "^2.0.3"
   }

@@ -4,8 +4,8 @@ const {
   TraceContextStore,
   TraceIdGenerator,
   Tracer,
-} = require('../dist/src/core/traces');
-const { SimpleSpanProcessor } = require('../dist/src/core/traces/processor');
+} = require('../dist/core/traces');
+const { SimpleSpanProcessor } = require('../dist/core/traces/processor');
 
 const ITERATIONS = Number(process.env.BENCH_ITERATIONS ?? 100_000);
 

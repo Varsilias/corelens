@@ -27,7 +27,7 @@ async function benchCorelens() {
   };
 
   try {
-    const { corelens } = require('../dist/src');
+    const { corelens } = require('../dist');
     const lens = corelens({
       serviceName: 'bench-corelens',
       logs: {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const { measure, resultPath, writeReport } = require('./lib/runner');
-const { MetricsRegistry } = require('../dist/src/core/metrics/registry');
+const { MetricsRegistry } = require('../dist/core/metrics/registry');
 
 const ITERATIONS = Number(process.env.BENCH_ITERATIONS ?? 250_000);
 
