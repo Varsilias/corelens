@@ -1,19 +1,20 @@
 {
   "name": "example-hono",
   "version": "1.0.0",
-  "description": "",
+  "description": "Corelens Hono gateway example with outbound client spans",
   "main": "index.js",
   "scripts": {
     "start": "nodemon --watch src --ext ts --exec 'ts-node' src/index.ts",
     "dev": "nodemon --watch src --watch ../../src --ext ts --exec ts-node --require tsconfig-paths/register src/index.ts",
-    "bench": "autocannon -c 100 -d 20 http://localhost:3200/api/work/12"
+    "typecheck": "tsc --noEmit",
+    "bench": "autocannon -c 50 -d 20 http://localhost:3200/api/products/CORELENS-TEE/recommendations"
   },
   "keywords": [
     "corelens",
     "observability",
     "telemetry",
     "open-telemetry",
-    "fastify"
+    "hono"
   ],
   "author": "Daniel Okoronkwo <danielokoronkwo90@gmail.com>",
   "license": "MIT",

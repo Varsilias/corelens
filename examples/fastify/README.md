@@ -1,51 +1,62 @@
-## Corelen Fastify Example
+## Corelens Fastify Todo Example
 
-### First Pass Test
+This example is a small in-memory todo API used to exercise Corelens with
+Fastify route hooks, custom application metrics, structured logs, request
+tracing, Prometheus rendering, and graceful shutdown.
+
+Corelens is installed from the local library source:
+
+```json
+"@varsilias/corelens": "file:../../"
+```
+
+The TypeScript path alias also points at `../../src/index.ts`, so library
+changes are visible while running `npm run dev`.
+
+### Run
 
 ```bash
- npm run bench
+npm install
+npm run dev
+```
 
-> example-fastify@1.0.0 bench
-> autocannon -c 100 -d 20 http://localhost:3100/api/data
+The server listens on `127.0.0.1:3100` by default. Override it with
+`PORT=3101` or `HOST=0.0.0.0`.
 
-Running 20s test @ http://localhost:3100/api/data
-100 connections
+### API
 
+```bash
+curl http://127.0.0.1:3100/health
+curl http://127.0.0.1:3100/api/todos
+curl -X POST http://127.0.0.1:3100/api/todos \
+  -H 'content-type: application/json' \
+  -d '{"title":"Review Corelens Fastify telemetry"}'
+curl http://127.0.0.1:3100/api/todos/1
+curl -X PATCH http://127.0.0.1:3100/api/todos/1/complete
+curl -X DELETE http://127.0.0.1:3100/api/todos/1
+curl http://127.0.0.1:3100/metrics
+curl http://127.0.0.1:3100/debug/stats
+```
 
-┌─────────┬──────┬──────┬───────┬──────┬─────────┬────────┬────────┐
-│ Stat    │ 2.5% │ 50%  │ 97.5% │ 99%  │ Avg     │ Stdev  │ Max    │
-├─────────┼──────┼──────┼───────┼──────┼─────────┼────────┼────────┤
-│ Latency │ 1 ms │ 1 ms │ 4 ms  │ 6 ms │ 1.69 ms │ 4.3 ms │ 372 ms │
-└─────────┴──────┴──────┴───────┴──────┴─────────┴────────┴────────┘
-┌───────────┬─────────┬─────────┬─────────┬─────────┬──────────┬──────────┬─────────┐
-│ Stat      │ 1%      │ 2.5%    │ 50%     │ 97.5%   │ Avg      │ Stdev    │ Min     │
-├───────────┼─────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
-│ Req/Sec   │ 31,343  │ 31,343  │ 47,135  │ 49,119  │ 45,033.2 │ 4,778.81 │ 31,337  │
-├───────────┼─────────┼─────────┼─────────┼─────────┼──────────┼──────────┼─────────┤
-│ Bytes/Sec │ 6.27 MB │ 6.27 MB │ 9.43 MB │ 9.82 MB │ 9.01 MB  │ 956 kB   │ 6.27 MB │
-└───────────┴─────────┴─────────┴─────────┴─────────┴──────────┴──────────┴─────────┘
+### Benchmarks
 
-Req/Bytes counts sampled once per second.
-# of samples: 20
+```bash
+npm run bench
+```
 
-901k requests in 20.02s, 180 MB read
+The benchmark runs `autocannon` against `GET /api/todos`, which exercises the
+Fastify adapter path, custom todo metrics, trace context, and request logging.
 
-# Statistics
-{
-  "logs": {
-    "producedCount": 900733,
-    "flushedCount": 900733,
-    "backPressureHitCount": 0,
-    "drainCount": 0,
-    "maxQueueLength": 1,
-    "currentQueueLength": 0,
-    "isDraining": false,
-    "peakQueuedBytes": 166,
-    "queuedBytes": 0,
-    "droppedCount": 0,
-    "acceptedCount": 900733,
-    "evictedCount": 0,
-    "softLimitHitCount": 0
-  }
-}
+### Flow
+
+- `src/config/corelens.ts` owns Corelens setup, Fastify adapters, metrics rendering, and shared logger/tracer exports.
+- `src/app.ts` builds the Fastify app and registers health, metrics, stats, and todo routes.
+- `src/routes/todo.routes.ts` maps todo endpoints to service calls.
+- `src/services/todo.service.ts` contains the in-memory todo behavior and custom spans/metrics.
+- `src/index.ts` bootstraps the server and handles shutdown.
+
+### Check The Example
+
+```bash
+npm run typecheck
 ```

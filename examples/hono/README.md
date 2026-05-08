@@ -1,51 +1,69 @@
-## Corelen Hono Example
+## Corelens Hono Gateway Example
 
-### First Pass Test
+This example is a small gateway-style Hono service. It exposes a product
+recommendation endpoint, calls a mock catalog endpoint over HTTP, and uses
+`tracer.withClientSpan` to create an outbound client span with a propagated
+`traceparent` header.
+
+That makes it useful for seeing both sides of an HTTP flow in one local app:
+the incoming Hono request span and the downstream client span Corelens creates
+around `fetch`.
+
+Corelens is installed from the local library source:
+
+```json
+"@varsilias/corelens": "file:../../"
+```
+
+The TypeScript path alias also points at `../../src/index.ts`, so library
+changes are visible while running `npm run dev`.
+
+### Run
 
 ```bash
- npm run bench
+npm install
+npm run dev
+```
 
-> example-hono@1.0.0 bench
-> autocannon -c 100 -d 20 http://localhost:3200/api/data
+The server listens on `127.0.0.1:3200` by default. Override it with
+`PORT=3201` or `HOST=0.0.0.0`.
 
-Running 20s test @ http://localhost:3200/api/data
-100 connections
+By default the gateway calls its own mock catalog route. You can point it at a
+different service with `CATALOG_BASE_URL=http://127.0.0.1:4000`.
 
+### API
 
-┌─────────┬──────┬──────┬───────┬──────┬─────────┬─────────┬────────┐
-│ Stat    │ 2.5% │ 50%  │ 97.5% │ 99%  │ Avg     │ Stdev   │ Max    │
-├─────────┼──────┼──────┼───────┼──────┼─────────┼─────────┼────────┤
-│ Latency │ 1 ms │ 1 ms │ 4 ms  │ 5 ms │ 1.61 ms │ 5.24 ms │ 433 ms │
-└─────────┴──────┴──────┴───────┴──────┴─────────┴─────────┴────────┘
-┌───────────┬─────────┬─────────┬─────────┬────────┬──────────┬──────────┬─────────┐
-│ Stat      │ 1%      │ 2.5%    │ 50%     │ 97.5%  │ Avg      │ Stdev    │ Min     │
-├───────────┼─────────┼─────────┼─────────┼────────┼──────────┼──────────┼─────────┤
-│ Req/Sec   │ 29,599  │ 29,599  │ 50,175  │ 55,231 │ 47,878.8 │ 5,715.83 │ 29,597  │
-├───────────┼─────────┼─────────┼─────────┼────────┼──────────┼──────────┼─────────┤
-│ Bytes/Sec │ 5.36 MB │ 5.36 MB │ 9.08 MB │ 10 MB  │ 8.67 MB  │ 1.03 MB  │ 5.36 MB │
-└───────────┴─────────┴─────────┴─────────┴────────┴──────────┴──────────┴─────────┘
+```bash
+curl http://127.0.0.1:3200/health
+curl http://127.0.0.1:3200/api/products/CORELENS-TEE/recommendations
+curl http://127.0.0.1:3200/mock/catalog/CORELENS-TEE
+curl http://127.0.0.1:3200/metrics
+curl http://127.0.0.1:3200/debug/stats
+```
 
-Req/Bytes counts sampled once per second.
-# of samples: 20
+The recommendation response includes `traceparentReceived: true` when the
+outbound client span propagated trace context to the mock catalog endpoint.
 
-958k requests in 20.02s, 173 MB read
+### Benchmarks
 
-# Statistics
-{
-  "logs": {
-    "producedCount": 957695,
-    "flushedCount": 957695,
-    "backPressureHitCount": 0,
-    "drainCount": 0,
-    "maxQueueLength": 1,
-    "currentQueueLength": 0,
-    "isDraining": false,
-    "peakQueuedBytes": 146,
-    "queuedBytes": 0,
-    "droppedCount": 0,
-    "acceptedCount": 957695,
-    "evictedCount": 0,
-    "softLimitHitCount": 0
-  }
-}
+```bash
+npm run bench
+```
+
+The benchmark runs `autocannon` against the recommendation endpoint, so it
+exercises Hono request instrumentation, custom gateway metrics, request logs,
+and the outbound `withClientSpan` fetch path.
+
+### Flow
+
+- `src/config/corelens.ts` owns Corelens setup, Hono adapters, metrics rendering, and shared logger/tracer exports.
+- `src/app.ts` builds the Hono app and registers health, metrics, stats, and gateway routes.
+- `src/routes/gateway.routes.ts` maps the public gateway route and the local mock catalog route.
+- `src/services/catalog-client.ts` wraps `fetch` in `tracer.withClientSpan` and forwards `traceparent`.
+- `src/index.ts` bootstraps the server and handles shutdown.
+
+### Check The Example
+
+```bash
+npm run typecheck
 ```

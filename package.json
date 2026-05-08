@@ -28,6 +28,12 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "bench": "npm run bench:logger && npm run bench:metrics && npm run bench:traces && npm run bench:frameworks && npm run bench:exporter-failure",
+    "bench:logger": "npm run build && node bench/logger-comparison.js",
+    "bench:metrics": "npm run build && node bench/metrics.js",
+    "bench:traces": "npm run build && node bench/traces.js",
+    "bench:frameworks": "npm run build && node bench/frameworks.js",
+    "bench:exporter-failure": "npm run build && node bench/exporter-failure.js",
     "prepublishOnly": "npm run build",
     "prepare": "husky",
     "publish:ci": "npm publish --access restricted",
@@ -58,10 +64,12 @@
     "hono": "^4.12.15",
     "husky": "^9.1.7",
     "jest": "^30.3.0",
+    "pino": "^10.3.1",
     "prettier": "^3.8.1",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "winston": "^3.19.0"
   },
   "peerDependencies": {
     "express": "^5.2.1",

@@ -11,6 +11,7 @@
     "forceConsistentCasingInFileNames": true,
 
     "baseUrl": ".",
+    "rootDir": "../..",
     "paths": {
       "@varsilias/corelens": ["../../src/index.ts"]
     },

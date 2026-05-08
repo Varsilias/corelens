@@ -10,6 +10,7 @@
     "moduleResolution": "node",
 
     "baseUrl": ".",
+    "rootDir": "../..",
     "paths": {
       "@varsilias/corelens": ["../../src/index.ts"]
     },
