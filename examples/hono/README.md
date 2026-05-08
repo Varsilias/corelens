@@ -31,6 +31,17 @@ The server listens on `127.0.0.1:3200` by default. Override it with
 By default the gateway calls its own mock catalog route. You can point it at a
 different service with `CATALOG_BASE_URL=http://127.0.0.1:4000`.
 
+### What It Demonstrates
+
+- Hono HTTP metrics and tracing adapters.
+- Structured gateway logs.
+- Trace-enriched logs during request handling.
+- Custom gateway and upstream metrics.
+- Outbound/client spans with `tracer.withClientSpan`.
+- W3C `traceparent` propagation to an upstream HTTP call.
+- Prometheus rendering at `/metrics`.
+- Corelens self-observability at `/debug/stats`.
+
 ### API
 
 ```bash
@@ -43,6 +54,29 @@ curl http://127.0.0.1:3200/debug/stats
 
 The recommendation response includes `traceparentReceived: true` when the
 outbound client span propagated trace context to the mock catalog endpoint.
+
+`/metrics` returns Prometheus text from the Corelens metrics snapshot.
+`/debug/stats` returns `lens.getStats()` and is meant for local or internal
+debugging only.
+
+### Corelens Setup
+
+Corelens setup lives in `src/config/corelens.ts`.
+
+The example enables logs, metrics, and traces, but it does not enable the
+background export pipeline. Metrics are exposed through Prometheus text instead.
+That keeps the gateway example easy to run while still showing trace
+propagation and client spans.
+
+The Hono adapters are registered explicitly:
+
+```ts
+new HonoMetricsAdapter().register(app, lens.httpMetricsRecorder);
+new HonoTracingAdapter().register(app, lens.httpTracingRecorder);
+```
+
+`src/services/catalog-client.ts` wraps `fetch` in `tracer.withClientSpan` and
+forwards the returned `traceparent` header to the catalog route.
 
 ### Benchmarks
 

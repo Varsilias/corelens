@@ -73,6 +73,7 @@ describe('hono integration', () => {
     const app = new Hono();
     new HonoMetricsAdapter().register(app, lens.httpMetricsRecorder);
     new HonoTracingAdapter().register(app, lens.httpTracingRecorder);
+    app.onError((_error, c) => c.text('Internal Server Error', 500));
     app.get('/fail', () => {
       throw new Error('boom');
     });

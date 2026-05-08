@@ -1,7 +1,7 @@
 {
   "name": "@varsilias/corelens",
   "version": "1.0.0",
-  "description": "Corelens is an opinionated, high-performance observability SDK for Node.js that provides logs, metrics, and traces with minimal setup, built on top of OpenTelemetry but hiding its complexity.",
+  "description": "Corelens is an opinionated, high-performance observability SDK for Node.js application that provides logs, metrics, and traces with minimal setup, built with first class support for OpenTelemetry API specification.",
   "type": "commonjs",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -36,6 +36,8 @@
   "files": [
     "dist/**/*",
     "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
     "LICENSE"
   ],
   "keywords": [
@@ -65,9 +67,13 @@
     "bench:traces": "npm run build && node bench/traces.js",
     "bench:frameworks": "npm run build && node bench/frameworks.js",
     "bench:exporter-failure": "npm run build && node bench/exporter-failure.js",
+    "version:patch": "node scripts/bump-version.js patch",
+    "version:minor": "node scripts/bump-version.js minor",
+    "version:major": "node scripts/bump-version.js major",
     "prepublishOnly": "npm run build",
-    "prepare": "husky",
-    "publish:ci": "npm publish --access restricted",
+    "prepare": "node scripts/prepare-husky.js",
+    "publish:ci": "npm publish --access public",
+    "publish:dry-run": "npm publish --dry-run",
     "dev": "ts-node src/tester"
   },
   "author": "Daniel Okoronkwo <danielokoronkwo90@gmail.com>",
