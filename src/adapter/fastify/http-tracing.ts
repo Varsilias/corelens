@@ -10,7 +10,7 @@ type CorelensFastifyRequest = FastifyRequest & {
   corelensSpan?: ReturnType<HttpTracingRecorder['start']>;
 };
 
-export class FastifyTracingsAdapter implements HttpTracingAdapter<FastifyInstance> {
+export class FastifyTracingAdapter implements HttpTracingAdapter<FastifyInstance> {
   register(app: FastifyInstance, recorder: HttpTracingRecorder): void {
     if (!recorder.isEnabled) {
       console.warn(
@@ -57,13 +57,14 @@ export class FastifyTracingsAdapter implements HttpTracingAdapter<FastifyInstanc
 
     app.addHook(
       'onError',
-      (request: any, reply: FastifyReply, error: Error) => {
+      (request: any, reply: FastifyReply, error: Error, done) => {
         try {
           const span = request.corelensSpan as ISpan;
-          if (!span) return;
-          span.recordException(error);
+          span?.recordException(error);
         } catch (err) {
           console.warn('[Corelens] Failed to record exception on span:', err);
+        } finally {
+          done();
         }
       },
     );
