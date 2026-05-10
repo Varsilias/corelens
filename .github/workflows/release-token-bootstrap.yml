@@ -1,52 +1,37 @@
-name: Release
+name: Release with npm token bootstrap
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Package version to publish, for example 1.0.0
+        description: Package version to publish, for example 1.0.0 or v1.0.0
         required: true
         type: string
-  push:
-    tags:
-      - 'v*'
 
 permissions:
   contents: read
   id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-token-bootstrap-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   publish:
-    name: Publish to npm
+    name: Publish to npm with one-time token
     runs-on: ubuntu-latest
     environment: npm
 
     steps:
       - name: Validate release ref
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            case "${{ github.ref }}" in
-              refs/heads/v1.0.0|refs/tags/v*) ;;
-              *)
-                echo "Manual releases must run from branch v1.0.0 or a v* tag."
-                exit 1
-                ;;
-            esac
-          fi
-
-          if [ "${{ github.event_name }}" = "push" ]; then
-            case "${{ github.ref }}" in
-              refs/tags/v*) ;;
-              *)
-                echo "Tag releases must use refs/tags/v*."
-                exit 1
-                ;;
-            esac
-          fi
+          case "${{ github.ref }}" in
+            refs/heads/v1.0.0|refs/heads/main|refs/tags/v*) ;;
+            *)
+              echo "Token bootstrap releases must run from branch v1.0.0, branch main, or a v* tag."
+              exit 1
+              ;;
+          esac
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,11 +52,9 @@ jobs:
           REQUESTED_VERSION="${{ inputs.version }}"
           REQUESTED_VERSION="${REQUESTED_VERSION#v}"
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ "$PACKAGE_VERSION" != "$REQUESTED_VERSION" ]; then
-              echo "package.json version $PACKAGE_VERSION does not match requested version ${{ inputs.version }}."
-              exit 1
-            fi
+          if [ "$PACKAGE_VERSION" != "$REQUESTED_VERSION" ]; then
+            echo "package.json version $PACKAGE_VERSION does not match requested version ${{ inputs.version }}."
+            exit 1
           fi
 
           if [ "${{ github.ref_type }}" = "tag" ]; then
@@ -130,4 +113,6 @@ jobs:
           fi
 
       - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public --provenance
