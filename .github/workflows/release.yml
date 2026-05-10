@@ -12,7 +12,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 concurrency:
@@ -82,6 +82,23 @@ jobs:
             fi
           fi
 
+      - name: Resolve release metadata
+        id: release
+        run: |
+          PACKAGE_NAME="$(node -p "require('./package.json').name")"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          TAG_NAME="v$PACKAGE_VERSION"
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_NAME="$GITHUB_REF_NAME"
+          fi
+
+          {
+            echo "package_name=$PACKAGE_NAME"
+            echo "package_version=$PACKAGE_VERSION"
+            echo "tag_name=$TAG_NAME"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build
         run: npm run build
 
@@ -119,15 +136,30 @@ jobs:
           console.log(`Package ${result.name}@${result.version} contains ${result.files.length} files.`);
           NODE
 
-      - name: Verify package is not already published
+      - name: Check npm publication status
+        id: npm
         run: |
-          PACKAGE_NAME="$(node -p "require('./package.json').name")"
-          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
-
-          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
-            echo "$PACKAGE_NAME@$PACKAGE_VERSION is already published."
-            exit 1
+          if npm view "${{ steps.release.outputs.package_name }}@${{ steps.release.outputs.package_version }}" version >/dev/null 2>&1; then
+            echo "${{ steps.release.outputs.package_name }}@${{ steps.release.outputs.package_version }} is already published. Skipping npm publish."
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish to npm
+        if: steps.npm.outputs.already_published != 'true'
         run: npm publish --access public --provenance
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.release.outputs.tag_name }}" >/dev/null 2>&1; then
+            echo "GitHub release ${{ steps.release.outputs.tag_name }} already exists."
+            exit 0
+          fi
+
+          gh release create "${{ steps.release.outputs.tag_name }}" \
+            --target "$GITHUB_SHA" \
+            --title "Corelens ${{ steps.release.outputs.tag_name }}" \
+            --generate-notes
