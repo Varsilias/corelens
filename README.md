@@ -1,5 +1,7 @@
 # Corelens
 
+[![release](https://github.com/Varsilias/corelens/actions/workflows/ci.yml/badge.svg?branch=v1.0.0&event=release)](https://github.com/Varsilias/corelens/actions/workflows/ci.yml)[![status](https://github.com/Varsilias/corelens/actions/workflows/ci.yml/badge.svg)](https://github.com/Varsilias/corelens/actions/workflows/ci.yml) [![forks](https://github.com/Varsilias/corelens/actions/workflows/ci.yml/badge.svg?branch=main&event=fork)](https://github.com/Varsilias/corelens/actions/workflows/ci.yml)
+
 Corelens is an opinionated, high-performance observability SDK for Node.js application that provides logs, metrics, and traces with minimal setup, built with first class support for OpenTelemetry API specification.
 
 It exists for teams that want useful service telemetry without wiring every observability concern by hand on day one. Corelens is not a full OpenTelemetry replacement. It is a practical SDK that covers common application instrumentation paths and can export to places that already speak OTLP.
