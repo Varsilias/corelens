@@ -172,6 +172,12 @@ Features that add runtime dependencies, public API surface, or new background wo
 - Do not mix unrelated refactors with behavior changes.
 - Mention any release note or migration impact.
 
+## Security and release policy
+
+Corelens is part of users’ application runtime, so release access is intentionally limited.
+
+Contributors are welcome to submit issues and pull requests, but npm publish access is not granted automatically. New dependencies, lifecycle scripts, exporter changes, and build pipeline changes require extra review.
+
 ## License and Attribution
 
 By contributing, you agree that your contribution can be distributed under the project license.

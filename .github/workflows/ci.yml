@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - v1.0.0
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Node ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version:
+          - 20
+          - 22
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Test
+        run: npm test -- --runInBand
+
+      - name: Check npm package contents
+        run: |
+          npm pack --dry-run --json > pack-dry-run.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync('pack-dry-run.json', 'utf8'))[0];
+          const files = new Set(result.files.map((file) => file.path));
+          const required = [
+            'package.json',
+            'README.md',
+            'CHANGELOG.md',
+            'CONTRIBUTING.md',
+            'SECURITY.md',
+            'LICENSE',
+            'dist/index.js',
+            'dist/index.d.ts',
+          ];
+          const missing = required.filter((file) => !files.has(file));
+          if (missing.length > 0) {
+            console.error(`Missing expected package files: ${missing.join(', ')}`);
+            process.exit(1);
+          }
+          const unexpected = [...files].filter((file) =>
+            file.startsWith('.github/') ||
+            file.startsWith('src/') ||
+            file.startsWith('tests/') ||
+            file.startsWith('bench/') ||
+            file.startsWith('examples/'),
+          );
+          if (unexpected.length > 0) {
+            console.error(`Unexpected files in package: ${unexpected.join(', ')}`);
+            process.exit(1);
+          }
+          console.log(`Package ${result.name}@${result.version} contains ${result.files.length} files.`);
+          NODE
+
+      - name: Upload npm pack dry-run log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-pack-dry-run-node-${{ matrix.node-version }}
+          path: pack-dry-run.json
+          if-no-files-found: ignore
+          retention-days: 7

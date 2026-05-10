@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version to publish, for example 1.0.0
+        required: true
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    environment: npm
+
+    steps:
+      - name: Validate release ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            case "${{ github.ref }}" in
+              refs/heads/v1.0.0|refs/tags/v*) ;;
+              *)
+                echo "Manual releases must run from branch v1.0.0 or a v* tag."
+                exit 1
+                ;;
+            esac
+          fi
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            case "${{ github.ref }}" in
+              refs/tags/v*) ;;
+              *)
+                echo "Tag releases must use refs/tags/v*."
+                exit 1
+                ;;
+            esac
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify package version
+        run: |
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "$PACKAGE_VERSION" != "${{ inputs.version }}" ]; then
+              echo "package.json version $PACKAGE_VERSION does not match requested version ${{ inputs.version }}."
+              exit 1
+            fi
+          fi
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
+              echo "package.json version $PACKAGE_VERSION does not match tag $GITHUB_REF_NAME."
+              exit 1
+            fi
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Test
+        run: npm test -- --runInBand
+
+      - name: Check npm package contents
+        run: |
+          npm pack --dry-run --json > pack-dry-run.json
+          node <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync('pack-dry-run.json', 'utf8'))[0];
+          const files = new Set(result.files.map((file) => file.path));
+          const required = [
+            'package.json',
+            'README.md',
+            'CHANGELOG.md',
+            'CONTRIBUTING.md',
+            'SECURITY.md',
+            'LICENSE',
+            'dist/index.js',
+            'dist/index.d.ts',
+          ];
+          const missing = required.filter((file) => !files.has(file));
+          if (missing.length > 0) {
+            console.error(`Missing expected package files: ${missing.join(', ')}`);
+            process.exit(1);
+          }
+          console.log(`Package ${result.name}@${result.version} contains ${result.files.length} files.`);
+          NODE
+
+      - name: Verify package is not already published
+        run: |
+          PACKAGE_NAME="$(node -p "require('./package.json').name")"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "$PACKAGE_NAME@$PACKAGE_VERSION is already published."
+            exit 1
+          fi
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
