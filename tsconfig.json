@@ -12,7 +12,6 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "sourceMap": true,
-    "ignoreDeprecations": "5.5",
     "resolveJsonModule": true,
     "rootDir": "src",
     "types": ["jest", "node"]
