@@ -134,5 +134,6 @@ examples/hono/package-lock.json
 examples/express/.env
 examples/fastify/.env
 examples/hono/.env
+examples/nestjs/.env
 
 .vscode

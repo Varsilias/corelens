@@ -16,6 +16,11 @@
       "require": "./dist/adapter/index.js",
       "default": "./dist/adapter/index.js"
     },
+    "./adapter/nest": {
+      "types": "./dist/adapter/nest/index.d.ts",
+      "require": "./dist/adapter/nest/index.js",
+      "default": "./dist/adapter/nest/index.js"
+    },
     "./core": {
       "types": "./dist/core/index.d.ts",
       "require": "./dist/core/index.js",
@@ -89,6 +94,7 @@
   },
   "homepage": "https://github.com/Varsilias/corelens#readme",
   "devDependencies": {
+    "@nestjs/common": "^11.1.21",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/node": "^25.2.3",
@@ -111,11 +117,15 @@
     "winston": "^3.19.0"
   },
   "peerDependencies": {
+    "@nestjs/common": ">=10 <12",
     "express": ">=4 <6",
     "fastify": ">=4 <6",
     "hono": ">=4 <5"
   },
   "peerDependenciesMeta": {
+    "@nestjs/common": {
+      "optional": true
+    },
     "hono": {
       "optional": true
     },
