@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning after the 1.0.0 release.
 
+## [1.1.0]
+
+### Added
+
+- NestJS adapter module with `CorelensModule.forRoot()` and factory-based `CorelensModule.forRootAsync()` registration.
+- Injectable `CorelensService` for accessing Corelens logger, metrics, tracer, HTTP metrics recorder, and HTTP tracing recorder from Nest providers.
+- `CorelensNestLogger` implementation for wiring Corelens into Nest's native logger interface.
+- `CorelensHttpInterceptor` for Nest HTTP request metrics and server tracing.
+- Dedicated Nest adapter package entry point at `@varsilias/corelens/adapter/nest`.
+- NestJS example application with Corelens module registration, logger integration, HTTP interceptor registration, Prometheus metrics endpoint, and debug stats endpoint.
+
+### Changed
+
+- Kept NestJS integration isolated from the shared `@varsilias/corelens/adapter` barrel so non-Nest adapter users do not load Nest runtime dependencies.
+- Declared `@nestjs/common` as an optional peer dependency for consumers using the Nest adapter.
+- Updated the NestJS example start scripts to build the local Corelens package before starting the app.
+- Updated the NestJS example to import Corelens through public package exports instead of local `dist` paths.
+
+### Fixed
+
+- Fixed Nest async module registration so `CorelensService`, `CorelensNestLogger`, and `CorelensHttpInterceptor` are available through Nest dependency injection.
+- Fixed Nest route normalization so root and controller-level routes produce `/` and `/metrics`, not double-slash labels such as `//metrics`.
+- Fixed the Nest metrics endpoint response handling by using Nest-managed headers instead of taking over the raw Express response.
+- Fixed Nest HTTP metrics recording so metrics are still emitted when tracing is disabled or an ignored trace route prevents span creation.
+- Fixed Nest span metadata so `http.method` receives the HTTP method only while span naming remains method plus route.
+
+### Internal
+
+- Added focused Nest integration tests for route metadata normalization, parameterized route labels, and metrics behavior when tracing does not create a span.
+- Aligned the Nest example dependency ranges with the Nest version used by the root development environment.
+
 ## [1.0.0]
 
 ### Added

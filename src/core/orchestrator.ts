@@ -26,7 +26,7 @@ const EMPTY_EXPORT_STATS = {
   lastExportErrorAt: undefined,
 };
 
-class Corelens {
+export class Corelens {
   private modules: Module[] = [];
   private started: boolean = false;
   private shutdownPromise?: Promise<CorelensShutdownResult>;
