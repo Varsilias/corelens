@@ -1,19 +1,12 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Package version to publish, for example 1.0.0
-        required: true
-        type: string
   push:
     tags:
       - 'v*'
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -21,38 +14,29 @@ concurrency:
 
 jobs:
   publish:
+    permissions:
+      contents: write
+      id-token: write
     name: Publish to npm
     runs-on: ubuntu-latest
     environment: npm
 
     steps:
-      - name: Validate release ref
+      - name: Validate release tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            case "${{ github.ref }}" in
-              refs/heads/v1.0.0|refs/tags/v*) ;;
-              *)
-                echo "Manual releases must run from branch v1.0.0 or a v* tag."
-                exit 1
-                ;;
-            esac
-          fi
-
-          if [ "${{ github.event_name }}" = "push" ]; then
-            case "${{ github.ref }}" in
-              refs/tags/v*) ;;
-              *)
-                echo "Tag releases must use refs/tags/v*."
-                exit 1
-                ;;
-            esac
-          fi
+          case "${GITHUB_REF_NAME}" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "Release tags must look like v1.2.3."
+              exit 1
+              ;;
+          esac
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
           node-version: 22
           cache: npm
@@ -61,26 +45,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify package version
-        run: |
-          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
-          REQUESTED_VERSION="${{ inputs.version }}"
-          REQUESTED_VERSION="${REQUESTED_VERSION#v}"
-
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            if [ "$PACKAGE_VERSION" != "$REQUESTED_VERSION" ]; then
-              echo "package.json version $PACKAGE_VERSION does not match requested version ${{ inputs.version }}."
-              exit 1
-            fi
-          fi
-
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            TAG_VERSION="${GITHUB_REF_NAME#v}"
-            if [ "$PACKAGE_VERSION" != "$TAG_VERSION" ]; then
-              echo "package.json version $PACKAGE_VERSION does not match tag $GITHUB_REF_NAME."
-              exit 1
-            fi
-          fi
+      - name: Verify release metadata
+        run: npm run release:check
 
       - name: Resolve release metadata
         id: release
