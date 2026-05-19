@@ -74,6 +74,8 @@
     "bench:traces": "npm run build && node bench/traces.js",
     "bench:frameworks": "npm run build && node bench/frameworks.js",
     "bench:exporter-failure": "npm run build && node bench/exporter-failure.js",
+    "release:prepare": "node scripts/release-prepare.js",
+    "release:check": "node scripts/release-check.js",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
     "version:major": "node scripts/bump-version.js major",
