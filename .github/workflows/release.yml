@@ -38,13 +38,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           registry-url: https://registry.npmjs.org
 
-      - name: Use npm with trusted publishing support
+      - name: Verify trusted publishing toolchain
         run: |
-          npm install -g npm@latest
           node --version
           npm --version
 
