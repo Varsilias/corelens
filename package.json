@@ -89,7 +89,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Varsilias/corelens"
+    "url": "git+https://github.com/Varsilias/corelens.git"
   },
   "bugs": {
     "url": "https://github.com/Varsilias/corelens/issues"
