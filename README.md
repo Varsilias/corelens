@@ -621,3 +621,35 @@ The license allows users to use, copy, modify, merge, publish, distribute, subli
 Attribution is required by preserving the MIT license notice. Public acknowledgement or a link back to the Corelens project is appreciated when the project is forked, copied, redistributed, or used as the basis for another project.
 
 Forks and redistributed versions should not imply official endorsement by the Corelens maintainer unless that endorsement has been approved.
+
+## Release Flow
+
+Corelens releases are tag-driven. The package version, lockfile version, changelog entry, and git tag must all agree before npm publishing runs.
+
+Prepare a release with either an exact version or a semver bump:
+
+```sh
+npm run release:prepare -- 1.2.0
+# or
+npm run release:prepare -- patch
+```
+
+Review the generated changes, especially `CHANGELOG.md`, then run:
+
+```sh
+npm run release:check
+```
+
+When the release metadata is clean, commit it and push the matching tag:
+
+```sh
+git add package.json package-lock.json CHANGELOG.md
+git commit -m "chore: release v1.2.0"
+git push origin main
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+Pushing the `vX.Y.Z` tag starts the GitHub release workflow. The workflow verifies the tag against `package.json`, runs the normal checks, waits on the protected `npm` environment, publishes with npm trusted publishing, and creates the GitHub release.
+
+If a release fails before publishing, fix the issue and move the tag only if it has not been published anywhere. Once a version is on npm, treat it as immutable and publish a new patch instead.
