@@ -155,6 +155,13 @@ export function labelsToAttributes(
   if (!labels) {
     return [];
   }
+  if (typeof labels === 'string') {
+    return [{ key: 'context', value: { stringValue: labels } }];
+  }
+
+  if (Array.isArray(labels)) {
+    return [{ key: 'context', value: { stringValue: labels.join(', ') } }];
+  }
   return Object.entries(labels).map(([key, value]) => ({
     key,
     value: formatValue(value),
