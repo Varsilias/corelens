@@ -36,13 +36,22 @@ export const lens = corelens({
     signals: {
       logs: {
         enabled: true,
+        mode: 'simple',
+        destination: {
+          type: 'otlp-http',
+          // filePath: 'app.log',
+          endpoint: 'http://localhost:4318/v1/logs',
+        },
         // destination: {
-        //   type: 'file',
-        //   filePath: 'app.log',
+        //   type: 'otlp-http',
+        //   endpoint: `https://o${process.env.SENTRY_ORG_ID}.ingest.de.sentry.io/api/${process.env.SENTRY_PROJECT_ID}/integration/otlp/v1/logs`,
+        //   headers: {
+        //     'x-sentry-auth': `sentry sentry_key=${process.env.SENTRY_KEY}`,
+        //   },
         // },
       },
       metrics: {
-        enabled: true,
+        enabled: false,
         // destination: {
         //   type: 'file',
         //   filePath: 'metrics.prom',
@@ -57,6 +66,13 @@ export const lens = corelens({
         //   type: 'file',
         //   filePath: 'traces.log',
         // },
+        destination: {
+          type: 'otlp-http',
+          endpoint: `https://o${process.env.SENTRY_ORG_ID}.ingest.de.sentry.io/api/${process.env.SENTRY_PROJECT_ID}/integration/otlp/v1/traces`,
+          headers: {
+            'x-sentry-auth': `sentry sentry_key=${process.env.SENTRY_KEY}`,
+          },
+        },
       },
     },
   },

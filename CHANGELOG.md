@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning after the 1.0.0 release.
 
+## [1.1.1]
+
+### Added
+
+- `labelsToAttributes(labels)`
+
+### Changed
+
+- Extended the OTLP label-to-attribute conversion in the public API to explicitly handle types: `strings` and `Arrays`
+
+### Fixed
+
+- Labels are now converted consistently into attributes during OTLP handling
+
 ## [1.1.0]
 
 ### Added
