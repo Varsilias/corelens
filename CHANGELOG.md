@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning after the 1.0.0 release.
 
+## [1.1.2]
+
+### Added
+
+- Runtime metrics collection(`metrics.http.enabled`)
+
+### Changed
+
+- Previously, when the Node.js process starts up, it takes a while before the runtime has enough information about the `event loop` lag and therefore calling `this.loopLag.set(meanLagSeconds)` caused `meanLagSeconds` to be null at start up
+
+### Fixed
+
+- Prevent null value from being passed into `this.loopLag.set()` function during metrics collection.
+- Fixed an OTel metrics export bug where `null` metric values reached OTLP/protobuf serialization, causing failures around numeric encoding (`asDouble` / reader path)
+
 ## [1.1.1]
 
 ### Added

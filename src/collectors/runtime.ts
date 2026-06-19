@@ -81,10 +81,10 @@ export class RuntimeMetricsCollector {
 
   private update() {
     const p99Lag = this.histogram.percentile(99) / 1e9;
-    this.loopLagP99.set(p99Lag);
+    if (Number.isFinite(p99Lag)) this.loopLagP99.set(p99Lag);
 
     const meanLagSeconds = this.histogram.mean / 1e9;
-    this.loopLag.set(meanLagSeconds);
+    if (Number.isFinite(meanLagSeconds)) this.loopLag.set(meanLagSeconds);
 
     this.histogram.reset();
   }
