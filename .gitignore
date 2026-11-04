@@ -137,3 +137,6 @@ examples/hono/.env
 examples/nestjs/.env
 
 .vscode
+
+# macOS Finder metadata
+.DS_Store
