@@ -1,3 +1,5 @@
+import { diagnostics } from '../../src/core/diagnostics';
+import { ExportHttpError } from '../../src/exporters/errors';
 import { BatchSpanProcessor } from '../../src/core/traces/processor';
 import { Span, SpanKind, TraceExporter } from '../../src/core/traces/span';
 
@@ -239,5 +241,31 @@ describe('batch span processor', () => {
     expect(unhandled).not.toHaveBeenCalled();
     process.removeListener('unhandledRejection', unhandled);
     await processor.shutdown();
+  });
+
+  it('discards a batch the collector rejected so later spans still export', async () => {
+    jest.spyOn(diagnostics, 'warn').mockImplementation(() => {});
+    const exporter = {
+      export: jest
+        .fn()
+        .mockRejectedValueOnce(new ExportHttpError('bad payload', 400))
+        .mockResolvedValue(undefined),
+    };
+    const processor = makeProcessor(exporter, 'drop-newest');
+
+    endSpan(processor, 'poison');
+    await expect(processor.forceFlush()).resolves.toBeUndefined();
+
+    endSpan(processor, 'next');
+    await processor.forceFlush();
+
+    expect(processor.snapshot()).toMatchObject({
+      exportedCount: 1,
+      failedExportCount: 1,
+      droppedCount: 1,
+      currentQueueLength: 0,
+    });
+    await processor.shutdown();
+    jest.restoreAllMocks();
   });
 });

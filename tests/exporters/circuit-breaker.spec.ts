@@ -1,3 +1,4 @@
+import { ExportHttpError } from '../../src/exporters/errors';
 import { CircuitBreakerExporter } from '../../src/exporters/circuit-breaker';
 
 describe('circuit breaker exporter', () => {
@@ -88,5 +89,22 @@ describe('circuit breaker exporter', () => {
     await exporter.shutdown();
 
     expect(shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not open for payloads the collector rejected', async () => {
+    const exportMock = jest
+      .fn()
+      .mockRejectedValue(new ExportHttpError('bad payload', 400));
+    const exporter = new CircuitBreakerExporter(
+      { export: exportMock },
+      { threshold: 1, resetTimeoutMs: 1_000 },
+    );
+
+    for (let i = 0; i < 3; i++) {
+      await expect(exporter.export([{ id: `span-${i}` }])).rejects.toThrow(
+        'bad payload',
+      );
+    }
+    expect(exportMock).toHaveBeenCalledTimes(3);
   });
 });

@@ -1,4 +1,5 @@
 import { withTimeout } from '../../exporters/circuit-breaker';
+import { isPermanentExportError } from '../../exporters/errors';
 import { Exporter } from '../../exporters/types';
 import { FullQueuePolicy } from '../config/types';
 import { diagnostics } from '../diagnostics';
@@ -344,8 +345,15 @@ export class BatchSpanProcessor implements SpanProcessor {
       this.failedExportCount++;
       this.reportExportFailure(error);
 
-      // keep spans in queue for next retry/interval
-      throw error;
+      // Transient failure: keep spans in queue for next retry/interval.
+      if (!isPermanentExportError(error)) throw error;
+
+      // The collector rejected this payload; retrying it would block the queue forever.
+      this.queue.splice(0, batch.length);
+      this.droppedCount += batch.length;
+      diagnostics.warn(
+        `[Corelens] Trace export rejected by collector — ${batch.length} span(s) discarded\n`,
+      );
     }
   }
 

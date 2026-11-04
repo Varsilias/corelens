@@ -1,3 +1,4 @@
+import { isPermanentExportError } from './errors';
 import { Exporter } from './types';
 
 export class RetryingTraceExporter<
@@ -22,7 +23,8 @@ export class RetryingTraceExporter<
           throw new DOMException('Export aborted', 'AbortError');
         return await this.inner.export(spans, signal);
       } catch (error) {
-        if (attempt === maxRetries) throw error;
+        if (attempt === maxRetries || isPermanentExportError(error))
+          throw error;
         if (signal?.aborted)
           throw new DOMException('Export aborted', 'AbortError');
 

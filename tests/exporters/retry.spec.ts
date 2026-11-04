@@ -1,3 +1,4 @@
+import { ExportHttpError } from '../../src/exporters/errors';
 import { RetryingTraceExporter } from '../../src/exporters/retry';
 
 describe('retry exporter', () => {
@@ -94,5 +95,31 @@ describe('retry exporter', () => {
     await exporter.shutdown?.();
 
     expect(shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry payloads the collector rejected', async () => {
+    const rejected = new ExportHttpError('bad payload', 400);
+    const exportMock = jest.fn().mockRejectedValue(rejected);
+    const exporter = new RetryingTraceExporter(
+      { export: exportMock },
+      { maxRetries: 3, initialDelayMs: 1, maxDelayMs: 1 },
+    );
+
+    await expect(exporter.export([{ id: 'span-1' }])).rejects.toBe(rejected);
+    expect(exportMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([408, 429, 503])('still retries status %i', async (status) => {
+    const exportMock = jest
+      .fn()
+      .mockRejectedValueOnce(new ExportHttpError('transient', status))
+      .mockResolvedValueOnce(undefined);
+    const exporter = new RetryingTraceExporter(
+      { export: exportMock },
+      { maxRetries: 3, initialDelayMs: 1, maxDelayMs: 1 },
+    );
+
+    await expect(exporter.export([{ id: 'span-1' }])).resolves.toBeUndefined();
+    expect(exportMock).toHaveBeenCalledTimes(2);
   });
 });
