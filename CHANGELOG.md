@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows semantic versioning after the 1.0.0 release.
 
+## [1.1.3]
+
+### Added
+
+- Logging an `Error` now attaches OpenTelemetry `exception.type`, `exception.message` and `exception.stacktrace` attributes to the log context, so stack traces survive export. Caller-supplied context keys take precedence.
+- `ExportHttpError`, carrying the HTTP `status`, is now thrown by the OTLP HTTP transport. The error message is unchanged.
+
+### Changed
+
+- OTLP exports rejected by the collector with a permanent 4xx status (anything except 408 and 429) are no longer retried and no longer count towards the circuit breaker. The rejected batch is discarded, counted in `droppedCount`, and reported with a diagnostic warning. 5xx, 408, 429, network and timeout failures are still retained and retried as before.
+
+### Fixed
+
+- Non-string log messages (objects, errors, numbers and so on) are now converted to strings before entering the log pipeline. Previously an object message produced an OTLP body of `{"stringValue": {}}`, which collectors reject with `400 Bad Request`.
+- A batch rejected by the collector no longer blocks the log tee and trace export queues indefinitely. Previously the same batch was resent on every flush, kept the circuit breaker open, and, with the default `drop-newest` policy, caused all subsequent logs and spans to be dropped until restart.
+
 ## [1.1.2]
 
 ### Added

@@ -1,3 +1,4 @@
+import { ExportHttpError } from '../exporters/errors';
 import { OTLPSignalRequest } from './types';
 
 type OtlpHttpTransportConfig = {
@@ -31,8 +32,9 @@ export class OtlpHttpTransport {
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        throw new Error(
+        throw new ExportHttpError(
           `OTLP HTTP export failed: ${res.status} ${res.statusText} ${text}`,
+          res.status,
         );
       }
     } finally {

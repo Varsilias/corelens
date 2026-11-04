@@ -1,3 +1,4 @@
+import { isPermanentExportError } from './errors';
 import { Exporter } from './types';
 
 enum CircuitState {
@@ -34,7 +35,8 @@ export class CircuitBreakerExporter<
       await this.inner.export(spans, signal);
       this.onSuccess();
     } catch (error) {
-      this.onFailure();
+      // A rejected payload says nothing about the collector's health.
+      if (!isPermanentExportError(error)) this.onFailure();
       throw error;
     }
   }

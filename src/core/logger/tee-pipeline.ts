@@ -1,6 +1,7 @@
 import { LogEvent } from '.';
 import { diagnostics } from '../diagnostics';
 import { withTimeout } from '../../exporters/circuit-breaker';
+import { isPermanentExportError } from '../../exporters/errors';
 import { Exporter } from '../../exporters/types';
 import { FullQueuePolicy } from '../config/types';
 import { IPipeline, LogsPipelineStats } from './pipeline';
@@ -100,7 +101,14 @@ export class TeePipeline implements IPipeline {
     } catch (error) {
       this.failedExportCount++;
       this.reportFailure(error);
-      throw error;
+      if (!isPermanentExportError(error)) throw error;
+
+      // The collector rejected this payload; retrying it would block the queue forever.
+      this.queue.splice(0, batch.length);
+      this.droppedCount += batch.length;
+      diagnostics.warn(
+        `[Corelens] Log export rejected by collector — ${batch.length} log event(s) discarded\n`,
+      );
     }
   }
 

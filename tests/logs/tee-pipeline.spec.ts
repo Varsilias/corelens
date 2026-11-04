@@ -1,3 +1,4 @@
+import { ExportHttpError } from '../../src/exporters/errors';
 import { LogEvent } from '../../src/core/logger';
 import { diagnostics } from '../../src/core/diagnostics';
 import { IPipeline } from '../../src/core/logger/pipeline';
@@ -190,6 +191,38 @@ describe('logs tee pipeline', () => {
     expect(unhandled).not.toHaveBeenCalled();
     process.removeListener('unhandledRejection', unhandled);
     jest.spyOn(diagnostics, 'warn').mockImplementation(() => {});
+    await pipeline.flushAll();
+  });
+
+  it('discards a batch the collector rejected so later logs still export', async () => {
+    const warn = jest.spyOn(diagnostics, 'warn').mockImplementation(() => {});
+    const secondary = {
+      export: jest
+        .fn()
+        .mockRejectedValueOnce(new ExportHttpError('bad payload', 400))
+        .mockResolvedValue(undefined),
+    };
+    const pipeline = makeTee(secondary, 'drop-newest');
+
+    pipeline.handle(event('poison'));
+    await expect(pipeline.forceFlush()).resolves.toBeUndefined();
+
+    pipeline.handle(event('next'));
+    await pipeline.forceFlush();
+
+    expect(secondary.export).toHaveBeenLastCalledWith(
+      [event('next')],
+      expect.anything(),
+    );
+    expect(pipeline.snapshot()).toMatchObject({
+      exportedCount: 1,
+      failedExportCount: 1,
+      droppedCount: 1,
+      currentQueueLength: 0,
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('1 log event(s) discarded'),
+    );
     await pipeline.flushAll();
   });
 });

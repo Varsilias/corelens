@@ -1,6 +1,7 @@
 import { NormalisedConfig } from '../config/types';
 import { ContextProvider } from '../traces';
 import { IPipeline } from './pipeline';
+import { normalizeLogMessage, withExceptionContext } from './message';
 
 export type LogEvent = {
   level: string;
@@ -59,7 +60,11 @@ export class Logger implements ILogger {
     this.log('warn', m, c);
   }
 
-  private log(level: LogLevel, message: string, context?: Record<string, any>) {
+  private log(
+    level: LogLevel,
+    message: unknown,
+    context?: Record<string, any>,
+  ) {
     if (LEVEL_PRIORITY[level] < this.threshold) {
       return;
     }
@@ -70,9 +75,12 @@ export class Logger implements ILogger {
 
     const event: LogEvent = {
       level,
-      message,
+      message: normalizeLogMessage(message),
       serviceName: this.serviceName,
-      context,
+      context:
+        message instanceof Error
+          ? withExceptionContext(message, context)
+          : context,
       timestamp: this.getTimestamp(),
     };
 

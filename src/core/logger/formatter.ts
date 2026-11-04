@@ -1,4 +1,5 @@
 import { LogEvent } from '.';
+import { normalizeLogMessage } from './message';
 import {
   labelsToAttributes,
   OTLPLogRecord,
@@ -112,7 +113,7 @@ export class LogsOtlpFormatter implements SignalFormatter<
       observedTimeUnixNano: observedTimeNano,
       severityNumber: SEVERITY_NUMBER[event.level] ?? 9,
       severityText: event.level.toUpperCase(),
-      body: { stringValue: event.message },
+      body: { stringValue: normalizeLogMessage(event.message) },
       attributes: labelsToAttributes(event.context),
     };
 

@@ -101,4 +101,34 @@ describe('logger', () => {
       (p.handle as jest.Mock).mock.calls.map(([event]) => event.level),
     ).toEqual(['warn', 'error']);
   });
+
+  it('exports an Error message with its stack as exception attributes', () => {
+    const { pipeline: p, events } = pipeline();
+    const logger = new Logger(config(), p);
+    const error = new TypeError('boom');
+    const context = { route: '/users' };
+
+    logger.error(error as any, context);
+
+    expect(events[0]).toMatchObject({
+      message: 'TypeError: boom',
+      context: {
+        route: '/users',
+        'exception.type': 'TypeError',
+        'exception.message': 'boom',
+        'exception.stacktrace': error.stack,
+      },
+    });
+    expect(context).toEqual({ route: '/users' });
+  });
+
+  it('leaves context untouched for non-Error messages', () => {
+    const { pipeline: p, events } = pipeline();
+    const logger = new Logger(config(), p);
+    const context = { route: '/users' };
+
+    logger.info('ok', context);
+
+    expect((events[0] as any).context).toBe(context);
+  });
 });

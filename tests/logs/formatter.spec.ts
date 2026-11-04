@@ -86,4 +86,23 @@ describe('log formatters', () => {
     expect(record).not.toHaveProperty('traceId');
     expect(record).not.toHaveProperty('spanId');
   });
+
+  it('otlp formatter always emits a string body and exports exception attributes', () => {
+    const formatted = new LogsOtlpFormatter({
+      serviceName: 'api',
+      version: '1.0.0',
+    }).format([
+      event({
+        message: {} as any,
+        context: { 'exception.stacktrace': 'Error: boom\n    at x' },
+      }),
+    ]);
+    const record = formatted.resourceLogs[0].scopeLogs[0].logRecords[0];
+
+    expect(record.body).toEqual({ stringValue: '{}' });
+    expect(record.attributes).toContainEqual({
+      key: 'exception.stacktrace',
+      value: { stringValue: 'Error: boom\n    at x' },
+    });
+  });
 });
